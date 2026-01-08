@@ -71,7 +71,11 @@ def fetch_earnings_calendar(ticker: str) -> EarningsData:
                         next_date = earnings_dates[0]
                         if hasattr(next_date, 'strftime'):
                             next_earnings_date = next_date.strftime('%Y-%m-%d')
-                            days_to_earnings = (next_date.date() - date.today()).days
+                            # Check if it's a datetime object (has .date()) or date object
+                            if isinstance(next_date, datetime):
+                                days_to_earnings = (next_date.date() - date.today()).days
+                            else:
+                                days_to_earnings = (next_date - date.today()).days
                         elif isinstance(next_date, str):
                             next_earnings_date = next_date[:10]
                 elif hasattr(calendar, 'get'): # DataFrame-like

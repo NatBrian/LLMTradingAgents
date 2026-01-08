@@ -34,7 +34,7 @@ dependencies = [
     "requests>=2.31",
     
     # Google Gemini
-    "google-generativeai>=0.3",
+    "google-genai>=0.2",
     
     # Market data
     "yfinance>=0.2.30",
