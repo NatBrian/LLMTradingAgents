@@ -1,0 +1,93 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "myllmtradingagents"
+version = "0.1.0"
+description = "Minimal LLM Trading Arena - Compare multiple LLM providers on simulated trading"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+authors = [
+    {name = "MyLLMTradingAgents Contributors"}
+]
+keywords = ["llm", "trading", "simulation", "arena", "ai"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+dependencies = [
+    # Core
+    "pydantic>=2.0",
+    "pyyaml>=6.0",
+    "python-dotenv>=1.0",
+    
+    # HTTP client for LLM APIs
+    "httpx>=0.25",
+    "requests>=2.31",
+    
+    # Google Gemini
+    "google-generativeai>=0.3",
+    
+    # Market data
+    "yfinance>=0.2.30",
+    "exchange-calendars>=4.5",
+    "ccxt>=4.0",
+    
+    # Data processing
+    "pandas>=2.0",
+    "numpy>=1.24",
+    
+    # Technical indicators
+    "ta>=0.10",
+    
+    # CLI
+    "click>=8.0",
+    
+    # Dashboard
+    "streamlit>=1.30",
+    "plotly>=5.18",
+    
+    # Timezone handling
+    "pytz>=2023.3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "black>=23.0",
+    "ruff>=0.1",
+]
+
+[project.scripts]
+myllmtradingagents = "myllmtradingagents.cli:main"
+
+[project.urls]
+"Homepage" = "https://github.com/yourusername/MyLLMTradingAgents"
+"Bug Tracker" = "https://github.com/yourusername/MyLLMTradingAgents/issues"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["myllmtradingagents*", "dashboard*"]
+
+[tool.black]
+line-length = 100
+target-version = ["py310", "py311", "py312"]
+
+[tool.ruff]
+line-length = 100
+select = ["E", "F", "W", "I"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-v --tb=short"

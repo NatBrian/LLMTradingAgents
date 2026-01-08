@@ -1,0 +1,82 @@
+# MyLLMTradingAgents Arena Configuration
+# Sample config for US equities with 2 competitors (OpenRouter vs Gemini)
+
+name: "LLM Trading Arena - US Equities"
+timezone: "America/New_York"
+db_path: "arena.db"
+cache_dir: "~/.myllmtradingagents/cache"
+
+# Per-provider daily call limits (for budget control)
+daily_call_limits:
+  openrouter: 100
+  gemini: 100
+
+# Markets to trade
+markets:
+  - type: us_equity
+    timezone: "America/New_York"
+    tickers:
+      - AAPL
+      - MSFT
+      # Add more tickers as needed:
+      # - GOOGL
+      # - AMZN
+      # - NVDA
+      # - META
+      # - TSLA
+
+# For Singapore equities (uncomment to enable):
+# - type: sg_equity
+#   timezone: "Asia/Singapore"
+#   tickers:
+#     - D05.SI   # DBS
+#     - O39.SI   # OCBC
+#     - U11.SI   # UOB
+
+# For crypto (uncomment to enable):
+# - type: crypto
+#   timezone: "UTC"
+#   session_times:
+#     - "00:00"
+#     - "12:00"
+#   tickers:
+#     - BTC/USDT
+#     - ETH/USDT
+
+# Simulation parameters
+simulation:
+  initial_cash: 100000.0
+  slippage_bps: 10.0      # 10 basis points = 0.1%
+  fee_bps: 10.0           # 10 basis points = 0.1%
+  max_position_pct: 0.25  # Max 25% of portfolio in single position
+  max_orders_per_run: 3   # Max orders per trading session
+
+# Competitors (LLM configs)
+competitors:
+  # OpenRouter competitor using free model
+  - id: openrouter_xiaomi_mimo_v2_flash
+    name: "OpenRouter Xiaomi Mimo v2 Flash"
+    provider: openrouter
+    model: "xiaomi/mimo-v2-flash:free"
+    # Override defaults per competitor:
+    # initial_cash: 100000.0
+    # max_position_pct: 0.25
+    # max_orders_per_run: 3
+
+  # Gemini competitor using free tier
+  - id: gemini_2_5_flash
+    name: "Gemini 2.5 Flash"
+    provider: gemini
+    model: "gemini-2.5-flash"
+
+# Additional competitor examples (uncomment to add):
+#
+# - id: openrouter_gpt_120b
+#   name: "OpenRouter GPT-120B"
+#   provider: openrouter
+#   model: "openai/gpt-oss-120b:free"
+#
+# - id: gemini_pro
+#   name: "Gemini Pro"
+#   provider: gemini
+#   model: "gemini-2.5-pro"
