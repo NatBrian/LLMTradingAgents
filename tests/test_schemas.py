@@ -8,13 +8,9 @@ from myllmtradingagents.schemas import (
     Fill,
     Position,
     Snapshot,
-    AnalystReport,
-    TickerAnalysis,
     TradePlan,
     OrderSide,
     OrderType,
-    Signal,
-    Sentiment,
 )
 
 
@@ -113,52 +109,6 @@ class TestSnapshotSchema:
         assert snapshot.unrealized_pnl == 1000.0
 
 
-class TestAnalystReportSchema:
-    """Tests for AnalystReport schema."""
-    
-    def test_valid_report(self):
-        """Test creating a valid analyst report."""
-        report = AnalystReport(
-            session_date="2024-01-15",
-            session_type="OPEN",
-            market_summary="Markets are bullish",
-            analyses=[
-                TickerAnalysis(
-                    ticker="AAPL",
-                    signal=Signal.BUY,
-                    sentiment=Sentiment.BULLISH,
-                    confidence=0.8,
-                    rationale=["Strong earnings", "Good guidance"],
-                    risks=["Valuation concern"],
-                ),
-            ],
-        )
-        
-        assert report.session_date == "2024-01-15"
-        assert len(report.analyses) == 1
-        assert report.analyses[0].signal == Signal.BUY
-    
-    def test_json_roundtrip(self):
-        """Test JSON serialization roundtrip."""
-        report = AnalystReport(
-            session_date="2024-01-15",
-            session_type="CLOSE",
-            analyses=[
-                TickerAnalysis(
-                    ticker="MSFT",
-                    signal=Signal.HOLD,
-                    confidence=0.5,
-                ),
-            ],
-        )
-        
-        json_str = report.model_dump_json()
-        parsed = AnalystReport.model_validate_json(json_str)
-        
-        assert parsed.session_date == "2024-01-15"
-        assert parsed.analyses[0].ticker == "MSFT"
-
-
 class TestTradePlanSchema:
     """Tests for TradePlan schema."""
     
@@ -202,35 +152,6 @@ class TestTradePlanSchema:
         
         assert "AAPL" in plan.reasoning or plan.orders[0].ticker == "AAPL"
         assert plan.orders[0].side == OrderSide.BUY
-
-
-class TestSignalEnum:
-    """Tests for Signal enum."""
-    
-    def test_all_signals(self):
-        """Test all signal values."""
-        signals = [Signal.STRONG_BUY, Signal.BUY, Signal.HOLD, Signal.SELL, Signal.STRONG_SELL]
-        assert len(signals) == 5
-    
-    def test_from_string(self):
-        """Test creating signal from string."""
-        signal = Signal("BUY")
-        assert signal == Signal.BUY
-
-
-class TestSentimentEnum:
-    """Tests for Sentiment enum."""
-    
-    def test_all_sentiments(self):
-        """Test all sentiment values."""
-        sentiments = [
-            Sentiment.VERY_BULLISH,
-            Sentiment.BULLISH,
-            Sentiment.NEUTRAL,
-            Sentiment.BEARISH,
-            Sentiment.VERY_BEARISH,
-        ]
-        assert len(sentiments) == 5
 
 
 # ============================================================================
@@ -355,4 +276,3 @@ class TestStrategistProposalSchema:
         assert parsed.session_date == "2024-01-15"
         assert parsed.proposals[0].ticker == "AAPL"
         assert parsed.proposals[0].action == ProposedAction.BUY
-
