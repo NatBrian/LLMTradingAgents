@@ -8,6 +8,7 @@ directly in the agents module to avoid circular imports:
 """
 
 import json
+from typing import Tuple, Dict
 
 
 # ============================================================================
@@ -39,8 +40,8 @@ Output ONLY the corrected JSON object."""
 def build_repair_prompt(
     malformed_json: str,
     error: str,
-    schema: dict,
-) -> tuple[str, str]:
+    schema: Dict,
+) -> Tuple[str, str]:
     """
     Build a prompt to repair malformed JSON.
     

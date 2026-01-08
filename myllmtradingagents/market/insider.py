@@ -5,10 +5,13 @@ Data comes from SEC Form 4 filings.
 Returns raw transaction data - no signal interpretations.
 """
 
-from typing import Optional
+from typing import Optional, List, Dict
 from dataclasses import dataclass, field
 
 import yfinance as yf
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -31,7 +34,7 @@ class InsiderData:
     All data is authoritative from SEC Form 4 filings via yfinance.
     NO INTERPRETATIONS - just raw transaction data.
     """
-    transactions: list[InsiderTransaction] = field(default_factory=list)
+    transactions: List[InsiderTransaction] = field(default_factory=list)
     
     # Summary counts (for convenience, but LLM interprets meaning)
     total_buys_90d: int = 0
@@ -58,8 +61,14 @@ def fetch_insider_transactions(ticker: str) -> InsiderData:
         # Get insider transactions
         insider_df = None
         try:
+            logger.debug(f"Fetching insider transactions for {ticker}...", extra={"ticker": ticker})
             insider_df = stock.insider_transactions
-        except Exception:
+            if insider_df is not None and not insider_df.empty:
+                logger.debug(f"Fetched {len(insider_df)} insider transactions for {ticker}", extra={"ticker": ticker, "rows": len(insider_df)})
+            else:
+                logger.debug(f"No insider transactions found for {ticker}", extra={"ticker": ticker})
+        except Exception as e:
+            logger.debug(f"Could not fetch insider transactions for {ticker}: {e}", extra={"ticker": ticker})
             pass
         
         transactions = []
@@ -68,7 +77,7 @@ def fetch_insider_transactions(ticker: str) -> InsiderData:
         buy_value = 0.0
         sell_value = 0.0
         
-        if insider_df is not None and len(insider_df) > 0:
+        if insider_df is not None and not insider_df.empty:
             # Process the DataFrame
             for idx, row in insider_df.head(20).iterrows():
                 # Extract transaction details
@@ -149,11 +158,11 @@ def fetch_insider_transactions(ticker: str) -> InsiderData:
         )
         
     except Exception as e:
-        print(f"Error fetching insider transactions for {ticker}: {e}")
+        logger.error(f"Error fetching insider transactions for {ticker}: {e}", extra={"ticker": ticker, "error": str(e)})
         return InsiderData()
 
 
-def fetch_insider_transactions_batch(tickers: list[str]) -> dict[str, InsiderData]:
+def fetch_insider_transactions_batch(tickers: List[str]) -> Dict[str, InsiderData]:
     """
     Fetch insider transactions for multiple tickers.
     

@@ -6,7 +6,7 @@ All LLM outputs must conform to these schemas for strict JSON validation.
 
 from datetime import datetime
 from enum import Enum
-from typing import Optional
+from typing import Optional, List, Dict, Tuple
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -20,24 +20,11 @@ class OrderSide(str, Enum):
 class OrderType(str, Enum):
     """Order type: MARKET only for MVP."""
     MARKET = "MARKET"
+    LIMIT = "LIMIT"
+    STOP = "STOP"
 
 
-class Signal(str, Enum):
-    """Trading signal from analyst."""
-    STRONG_BUY = "STRONG_BUY"
-    BUY = "BUY"
-    HOLD = "HOLD"
-    SELL = "SELL"
-    STRONG_SELL = "STRONG_SELL"
 
-
-class Sentiment(str, Enum):
-    """Market sentiment."""
-    VERY_BULLISH = "VERY_BULLISH"
-    BULLISH = "BULLISH"
-    NEUTRAL = "NEUTRAL"
-    BEARISH = "BEARISH"
-    VERY_BEARISH = "VERY_BEARISH"
 
 
 class ProposedAction(str, Enum):
@@ -135,7 +122,7 @@ class Snapshot(BaseModel):
     """Portfolio snapshot at a point in time."""
     timestamp: datetime = Field(default_factory=datetime.utcnow)
     cash: float = Field(..., ge=0, description="Available cash")
-    positions: list[Position] = Field(default_factory=list)
+    positions: List[Position] = Field(default_factory=list)
     realized_pnl: float = Field(default=0.0, description="Total realized P&L")
     
     @property
@@ -158,58 +145,8 @@ class Snapshot(BaseModel):
 # LLM Output Schemas
 # ============================================================================
 
-class TickerAnalysis(BaseModel):
-    """Analysis for a single ticker from UnifiedAnalyst."""
-    ticker: str = Field(..., description="Ticker symbol")
-    signal: Signal = Field(..., description="Trading signal")
-    sentiment: Sentiment = Field(default=Sentiment.NEUTRAL, description="Market sentiment")
-    confidence: float = Field(default=0.5, ge=0.0, le=1.0, description="Confidence 0-1")
-    rationale: list[str] = Field(
-        default_factory=list,
-        description="Bullet points explaining the analysis",
-        max_length=5,
-    )
-    risks: list[str] = Field(
-        default_factory=list,
-        description="Key risks to watch",
-        max_length=3,
-    )
-    invalidators: list[str] = Field(
-        default_factory=list,
-        description="Conditions that would invalidate this analysis",
-        max_length=2,
-    )
-    
-    @field_validator("ticker")
-    @classmethod
-    def validate_ticker(cls, v: str) -> str:
-        return v.upper().strip()
-
-
-class AnalystReport(BaseModel):
-    """
-    [DEPRECATED] Output from UnifiedAnalyst (LLM Call #1).
-    
-    This class is legacy and will be removed in future versions.
-    Use StrategistProposal instead.
-    
-    Combines market, fundamental, sentiment, and news analysis into one report.
-    """
-    session_date: str = Field(..., description="Trading session date YYYY-MM-DD")
-    session_type: str = Field(..., description="OPEN or CLOSE")
-    market_summary: str = Field(
-        default="",
-        description="Brief overall market conditions",
-        max_length=500,
-    )
-    analyses: list[TickerAnalysis] = Field(
-        default_factory=list,
-        description="Analysis for each ticker",
-    )
-
-
 # ============================================================================
-# Strategist Agent Output (NEW 3-Agent System)
+# Strategist Agent Output
 # ============================================================================
 
 class TickerProposal(BaseModel):
@@ -259,12 +196,12 @@ class StrategistProposal(BaseModel):
         description="Brief overall market assessment",
         max_length=1000,
     )
-    proposals: list[TickerProposal] = Field(
+    proposals: List[TickerProposal] = Field(
         default_factory=list,
         description="Proposed actions for each analyzed ticker",
     )
     
-    def get_actionable_proposals(self) -> list[TickerProposal]:
+    def get_actionable_proposals(self) -> List[TickerProposal]:
         """Get proposals that are BUY or SELL (not HOLD)."""
         return [p for p in self.proposals if p.action != ProposedAction.HOLD]
 
@@ -285,7 +222,7 @@ class TradePlan(BaseModel):
         description="Risk considerations",
         max_length=1500,
     )
-    orders: list[Order] = Field(
+    orders: List[Order] = Field(
         default_factory=list,
         description="Orders to execute. Empty list means HOLD.",
     )
@@ -302,7 +239,7 @@ class TradePlan(BaseModel):
 
 class LLMCall(BaseModel):
     """Record of a single LLM API call."""
-    call_type: str = Field(..., description="analyst or decision")
+    call_type: str = Field(..., description="strategist or decision")
     provider: str = Field(..., description="openrouter or gemini")
     model: str = Field(..., description="Model name")
     prompt_tokens: int = Field(default=0, ge=0)
@@ -325,18 +262,17 @@ class RunLog(BaseModel):
     timestamp: datetime = Field(default_factory=datetime.utcnow)
     
     # LLM interactions
-    llm_calls: list[LLMCall] = Field(default_factory=list)
+    llm_calls: List[LLMCall] = Field(default_factory=list)
     
     # Outputs
-    analyst_report: Optional[AnalystReport] = Field(default=None)
     strategist_proposal: Optional[StrategistProposal] = Field(default=None)
     trade_plan: Optional[TradePlan] = Field(default=None)
     
     # Execution
-    fills: list[Fill] = Field(default_factory=list)
+    fills: List[Fill] = Field(default_factory=list)
     
     # Errors
-    errors: list[str] = Field(default_factory=list)
+    errors: List[str] = Field(default_factory=list)
     
     # Final state
     snapshot_before: Optional[Snapshot] = Field(default=None)
@@ -379,7 +315,7 @@ class TickerFeatures(BaseModel):
     ma_50_distance_pct: Optional[float] = None
     
     # Recent news headlines (optional)
-    news_headlines: list[str] = Field(default_factory=list)
+    news_headlines: List[str] = Field(default_factory=list)
     
     def to_prompt_string(self) -> str:
         """Format features for LLM prompt."""
@@ -417,17 +353,13 @@ class TickerFeatures(BaseModel):
 
 
 # JSON Schema exports for LLM prompting
-def get_analyst_report_schema() -> dict:
-    """Get JSON schema for AnalystReport."""
-    return AnalystReport.model_json_schema()
 
-
-def get_trade_plan_schema() -> dict:
+def get_trade_plan_schema() -> Dict:
     """Get JSON schema for TradePlan."""
     return TradePlan.model_json_schema()
 
 
-def get_strategist_proposal_schema() -> dict:
+def get_strategist_proposal_schema() -> Dict:
     """Get JSON schema for StrategistProposal (3-Agent System)."""
     return StrategistProposal.model_json_schema()
 

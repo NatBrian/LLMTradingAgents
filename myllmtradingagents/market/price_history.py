@@ -4,12 +4,15 @@ Price history data fetching from yfinance.
 Returns raw OHLCV data from exchanges - authoritative market data.
 """
 
-from typing import Optional
+from typing import Optional, List, Dict
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
 import pandas as pd
 import yfinance as yf
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -31,7 +34,7 @@ class PriceHistoryData:
     All data is authoritative from exchange via yfinance.
     """
     ticker: str
-    bars: list[PriceBar] = field(default_factory=list)
+    bars: List[PriceBar] = field(default_factory=list)
     
     # 52-week range
     high_52w: Optional[float] = None
@@ -81,9 +84,13 @@ def fetch_price_history(
         start_date = end_date - timedelta(days=days + 10)  # Extra buffer for weekends
         
         df = stock.history(start=start_date, end=end_date)
+        logger.debug(f"yfinance history returned {len(df)} rows for {ticker}", extra={"ticker": ticker, "rows": len(df)})
         
         if df.empty:
+            logger.warning(f"No price history found for {ticker}", extra={"ticker": ticker})
             return PriceHistoryData(ticker=ticker.upper())
+        
+        logger.debug(f"Fetched {len(df)} price bars for {ticker}", extra={"ticker": ticker, "rows": len(df)})
         
         # Convert to list of PriceBar
         bars = []
@@ -106,10 +113,35 @@ def fetch_price_history(
         # Limit to requested days
         bars = bars[:days]
         
-        # Get 52-week high/low from info
-        info = stock.info or {}
-        high_52w = info.get('fiftyTwoWeekHigh')
-        low_52w = info.get('fiftyTwoWeekLow')
+        # Get 52-week high/low (fail-soft)
+        high_52w = None
+        low_52w = None
+        
+        # 1. Try info
+        try:
+            info = stock.info
+            if info:
+                high_52w = info.get('fiftyTwoWeekHigh')
+                low_52w = info.get('fiftyTwoWeekLow')
+        except Exception:
+            pass
+            
+        # 2. Try fast_info if info failed
+        if high_52w is None or low_52w is None:
+            try:
+                fast_info = stock.fast_info
+                if fast_info:
+                    high_52w = fast_info.get('year_high')
+                    low_52w = fast_info.get('year_low')
+            except Exception:
+                pass
+        
+        # 3. Fallback: Calculate from history (if we have enough data)
+        if (high_52w is None or low_52w is None) and bars:
+            # Note: This is only based on the fetched window (e.g. 60 days), 
+            # so it's not a true 52-week range, but better than nothing.
+            high_52w = max(b.high for b in bars)
+            low_52w = min(b.low for b in bars)
         
         return PriceHistoryData(
             ticker=ticker.upper(),
@@ -119,14 +151,14 @@ def fetch_price_history(
         )
         
     except Exception as e:
-        print(f"Error fetching price history for {ticker}: {e}")
+        logger.error(f"Error fetching price history for {ticker}: {e}", extra={"ticker": ticker, "error": str(e)})
         return PriceHistoryData(ticker=ticker.upper())
 
 
 def fetch_price_history_batch(
-    tickers: list[str],
+    tickers: List[str],
     days: int = 60,
-) -> dict[str, PriceHistoryData]:
+) -> Dict[str, PriceHistoryData]:
     """
     Fetch price history for multiple tickers.
     

@@ -16,14 +16,16 @@ ALL interpretation and analysis is done by the LLM - no pre-computed signals.
 """
 
 import json
-from typing import Union
+from typing import Union, Dict
 
 from .base import Agent, AgentResult
 from ..schemas import (
-    TickerFeatures,
     StrategistProposal,
     get_strategist_proposal_schema,
 )
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 # ============================================================================
@@ -112,7 +114,7 @@ class Strategist(Agent):
     
     This is Agent #1 in the 3-Agent System.
     
-    Input: Either list[TickerFeatures] (legacy) or list[MarketBriefing] (enhanced)
+    Input: list[MarketBriefing]
     Output: StrategistProposal with action recommendations
     """
     
@@ -126,15 +128,14 @@ class Strategist(Agent):
     
     def invoke(
         self,
-        context: dict,
+        context: Dict,
     ) -> AgentResult:
         """
         Invoke the Strategist agent.
         
         Args:
             context: Must contain:
-                - briefings: list of MarketBriefing objects (preferred)
-                  OR ticker_features: list[TickerFeatures] (legacy support)
+                - briefings: list of MarketBriefing objects
                 - session_date: str (YYYY-MM-DD)
                 - session_type: str ("OPEN" or "CLOSE")
                 
@@ -144,8 +145,8 @@ class Strategist(Agent):
         session_date: str = context.get("session_date", "")
         session_type: str = context.get("session_type", "OPEN")
         
-        # Support both new MarketBriefing and legacy TickerFeatures
         briefings = context.get("briefings", [])
+        logger.info(f"Invoking Strategist for {len(briefings)} briefings", extra={"session_date": session_date, "session_type": session_type, "briefing_count": len(briefings)})
         
         # Build the data string
         if briefings:
@@ -171,6 +172,8 @@ class Strategist(Agent):
             briefings=briefings_str,
         )
         
+        logger.debug("Strategist LLM Input Data:", extra={"briefings_length": len(briefings_str), "briefings_content": briefings_str})
+        
         # Call LLM
         response = self.llm_client.generate(
             prompt=user_prompt,
@@ -178,6 +181,8 @@ class Strategist(Agent):
             json_mode=True,
             temperature=0.7,
         )
+        
+        logger.debug("Strategist LLM response received", extra={"latency_ms": response.latency_ms, "success": response.success})
         
         # Parse and return
         return self._parse_response(response, StrategistProposal, prompt=user_prompt, system_prompt=system_prompt)

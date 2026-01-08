@@ -58,10 +58,10 @@ class BaseEquityAdapter(MarketAdapter):
                 import exchange_calendars as xcals
                 self._calendar = xcals.get_calendar(self.EXCHANGE)
             except ImportError:
-                logger.warning("exchange-calendars not found. Calendar features will be limited.")
+                logger.warning("exchange-calendars not found. Calendar features will be limited.", extra={"exchange": self.EXCHANGE})
                 self._calendar = None
             except Exception as e:
-                logger.warning(f"Could not load calendar {self.EXCHANGE}: {e}")
+                logger.warning(f"Could not load calendar {self.EXCHANGE}: {e}", extra={"exchange": self.EXCHANGE, "error": str(e)})
                 self._calendar = None
         return self._calendar
 
@@ -97,42 +97,53 @@ class BaseEquityAdapter(MarketAdapter):
             cache_age = datetime.now() - datetime.fromtimestamp(cache_file.stat().st_mtime)
             if cache_age.days < self.cache_days:
                 try:
+                    logger.debug(f"Cache hit for {ticker}", extra={"ticker": ticker, "cache_age_days": cache_age.days})
                     return pd.read_parquet(cache_file)
                 except Exception as e:
-                    logger.warning(f"Failed to read cache for {ticker}: {e}")
+                    logger.warning(f"Failed to read cache for {ticker}: {e}", extra={"ticker": ticker, "error": str(e)})
         
         # Fetch from yfinance
         try:
-            df = yf.download(
-                ticker_formatted,
+            logger.info(f"Fetching data for {ticker} from yfinance", extra={"ticker": ticker, "start_date": start_date.isoformat(), "end_date": end_date.isoformat()})
+            
+            # Use Ticker.history as per reference implementation
+            t = yf.Ticker(ticker_formatted)
+            logger.debug(f"Calling yf.Ticker.history for {ticker}", extra={"ticker": ticker, "start": start_date.isoformat(), "end": (end_date + timedelta(days=1)).isoformat()})
+            df = t.history(
                 start=start_date.isoformat(),
                 end=(end_date + timedelta(days=1)).isoformat(),
-                progress=False,
-                auto_adjust=True,
+                auto_adjust=True
             )
+            logger.debug(f"yfinance history returned {len(df)} rows for {ticker}", extra={"ticker": ticker, "rows": len(df)})
             
             if df.empty:
                 return pd.DataFrame(columns=["Date", "Open", "High", "Low", "Close", "Volume"])
-            
-            # Handle MultiIndex columns (common in recent yfinance versions)
-            if isinstance(df.columns, pd.MultiIndex):
-                # If the second level is the ticker, drop it
-                if len(df.columns.levels) > 1:
-                    df.columns = df.columns.droplevel(1)
             
             # Reset index to get Date as column
             df = df.reset_index()
             
             # Standardize column names
-            df = df.rename(columns={"index": "Date"})
+            # history() usually returns 'Date' (or 'Datetime'), 'Open', 'High', 'Low', 'Close', 'Volume', 'Dividends', 'Stock Splits'
             if "Date" not in df.columns and "Datetime" in df.columns:
                 df = df.rename(columns={"Datetime": "Date"})
             
-            # Ensure Date is datetime
+            # Ensure Date is datetime and tz-naive
             df["Date"] = pd.to_datetime(df["Date"])
+            if df["Date"].dt.tz is not None:
+                df["Date"] = df["Date"].dt.tz_localize(None)
             
             # Select only needed columns
             cols = ["Date", "Open", "High", "Low", "Close", "Volume"]
+            # Ensure all cols exist
+            for c in cols:
+                if c not in df.columns:
+                    # If Volume is missing (sometimes happens), fill 0
+                    if c == "Volume":
+                        df[c] = 0
+                    else:
+                        # Should not happen for OHLC
+                        pass
+
             available_cols = [c for c in cols if c in df.columns]
             df = df[available_cols]
             
@@ -142,13 +153,14 @@ class BaseEquityAdapter(MarketAdapter):
             # Cache
             try:
                 df.to_parquet(cache_file)
+                logger.debug(f"Cache written for {ticker}", extra={"ticker": ticker, "rows": len(df)})
             except Exception as e:
-                logger.warning(f"Failed to write cache for {ticker}: {e}")
+                logger.warning(f"Failed to write cache for {ticker}: {e}", extra={"ticker": ticker, "error": str(e)})
             
             return df
             
         except Exception as e:
-            logger.error(f"Error fetching data for {ticker}: {e}")
+            logger.error(f"Error fetching data for {ticker}: {e}", extra={"ticker": ticker, "error": str(e)})
             return pd.DataFrame(columns=["Date", "Open", "High", "Low", "Close", "Volume"])
 
     def get_session_times(self, date: date) -> Optional[tuple[datetime, datetime]]:
@@ -188,10 +200,97 @@ class BaseEquityAdapter(MarketAdapter):
 
     def get_latest_price(self, ticker: str) -> Optional[float]:
         """Get latest available price."""
+        # Try fast info first for real-time price
+        try:
+            import yfinance as yf
+            t = yf.Ticker(self._format_ticker(ticker))
+            # fast_info is faster and more reliable for latest price
+            price = t.fast_info.get("last_price")
+            if price:
+                logger.debug(f"Fetched latest price for {ticker} from fast_info: {price}", extra={"ticker": ticker, "price": price})
+                return float(price)
+            else:
+                logger.debug(f"fast_info.last_price is None for {ticker}", extra={"ticker": ticker})
+        except Exception:
+            pass
+            
+        # Fallback to daily bars
         bars = self.get_daily_bars(ticker, days=5)
         if bars.empty:
             return None
         return float(bars.iloc[-1]["Close"])
+
+    def get_open_price(self, ticker: str, date: date) -> Optional[float]:
+        """Get open price with real-time fallback."""
+        # Try historical data first
+        price = super().get_open_price(ticker, date)
+        if price is not None:
+            return price
+            
+        # If requesting today's open and it's missing from history (common during trading day),
+        # try to get it from real-time info
+        if date == date.today():
+            try:
+                import yfinance as yf
+                logger.info(f"Fetching real-time open price for {ticker}", extra={"ticker": ticker})
+                t = yf.Ticker(self._format_ticker(ticker))
+                # Try fast_info first
+                open_price = t.fast_info.get("open")
+                if open_price:
+                    logger.debug(f"Fetched real-time open for {ticker} from fast_info: {open_price}", extra={"ticker": ticker, "price": open_price})
+                    return float(open_price)
+                
+                # Fallback to regular info
+                info = t.info
+                if info and info.get("open"):
+                    logger.debug(f"Fetched real-time open for {ticker} from info: {info['open']}", extra={"ticker": ticker, "price": info['open']})
+                    return float(info["open"])
+                
+                # If market is open, 'regularMarketOpen' might be available
+                if info and info.get("regularMarketOpen"):
+                    logger.debug(f"Fetched real-time open for {ticker} from regularMarketOpen: {info['regularMarketOpen']}", extra={"ticker": ticker, "price": info['regularMarketOpen']})
+                    return float(info["regularMarketOpen"])
+                    
+            except Exception as e:
+                logger.warning(f"Failed to fetch real-time open for {ticker}: {e}", extra={"ticker": ticker, "error": str(e)})
+        
+        return None
+
+    def get_close_price(self, ticker: str, date: date) -> Optional[float]:
+        """Get close price with real-time fallback."""
+        # Try historical data first
+        price = super().get_close_price(ticker, date)
+        if price is not None:
+            return price
+            
+        # If requesting today's close (and market might be closed but data not in history yet),
+        # try to get it from real-time info
+        if date == date.today():
+            try:
+                import yfinance as yf
+                logger.info(f"Fetching real-time close price for {ticker}", extra={"ticker": ticker})
+                t = yf.Ticker(self._format_ticker(ticker))
+                # Try fast_info first (last_price is often close if market closed)
+                last_price = t.fast_info.get("last_price")
+                if last_price:
+                    logger.debug(f"Fetched real-time close for {ticker} from fast_info: {last_price}", extra={"ticker": ticker, "price": last_price})
+                    return float(last_price)
+                
+                # Fallback to regular info
+                info = t.info
+                if info and info.get("previousClose"):
+                     # If we are strictly looking for today's close, previousClose is WRONG if today is a trading day.
+                     # But if we are in 'CLOSE' session, we want the latest price.
+                     pass
+                
+                if info and info.get("currentPrice"):
+                    logger.debug(f"Fetched real-time close for {ticker} from currentPrice: {info['currentPrice']}", extra={"ticker": ticker, "price": info['currentPrice']})
+                    return float(info["currentPrice"])
+                    
+            except Exception as e:
+                logger.warning(f"Failed to fetch real-time close for {ticker}: {e}", extra={"ticker": ticker, "error": str(e)})
+        
+        return None
 
 
 class USEquityAdapter(BaseEquityAdapter):

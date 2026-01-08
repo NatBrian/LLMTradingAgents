@@ -4,17 +4,20 @@ Deterministic feature computation for market data.
 Computes technical indicators and returns for LLM prompts.
 """
 
-from typing import Optional
+from typing import Optional, List, Dict, Tuple
 import pandas as pd
 import numpy as np
 
 from ..schemas import TickerFeatures
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def compute_features(
     ticker: str,
     bars: pd.DataFrame,
-    news_headlines: Optional[list[str]] = None,
+    news_headlines: Optional[List[str]] = None,
 ) -> TickerFeatures:
     """
     Compute features from OHLCV data.
@@ -33,6 +36,8 @@ def compute_features(
             date="",
             news_headlines=news_headlines or [],
         )
+    
+    logger.debug(f"Computing features for {ticker}", extra={"ticker": ticker, "bars": len(bars)})
     
     # Ensure we have the right columns
     required = ["Open", "High", "Low", "Close", "Volume"]
@@ -142,7 +147,8 @@ def _compute_rsi(close: pd.Series, period: int = 14) -> Optional[float]:
         
         rs = gain.iloc[-1] / loss.iloc[-1]
         return float(100 - (100 / (1 + rs)))
-    except Exception:
+    except Exception as e:
+        logger.debug(f"Error computing RSI for {close.name}: {e}", extra={"error": str(e)})
         pass
     
     return None
@@ -153,7 +159,7 @@ def _compute_macd(
     fast: int = 12,
     slow: int = 26,
     signal: int = 9,
-) -> tuple[Optional[float], Optional[float], Optional[float]]:
+) -> Tuple[Optional[float], Optional[float], Optional[float]]:
     """Compute MACD indicator."""
     if len(close) < slow + signal:
         return None, None, None
@@ -189,17 +195,18 @@ def _compute_macd(
             float(macd_signal_line.iloc[-1]),
             float(macd_hist.iloc[-1]),
         )
-    except Exception:
+    except Exception as e:
+        logger.debug(f"Error computing MACD for {close.name}: {e}", extra={"error": str(e)})
         pass
     
     return None, None, None
 
 
 def compute_features_batch(
-    tickers: list[str],
-    bars_dict: dict[str, pd.DataFrame],
-    news_dict: Optional[dict[str, list[str]]] = None,
-) -> list[TickerFeatures]:
+    tickers: List[str],
+    bars_dict: Dict[str, pd.DataFrame],
+    news_dict: Optional[Dict[str, List[str]]] = None,
+) -> List[TickerFeatures]:
     """
     Compute features for multiple tickers.
     

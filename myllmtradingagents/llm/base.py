@@ -5,6 +5,9 @@ Abstract base class for LLM clients.
 from abc import ABC, abstractmethod
 from typing import Optional
 from dataclasses import dataclass
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -94,6 +97,7 @@ class LLMClient(ABC):
                 return response
             
             last_error = response.error
+            logger.warning(f"LLM call failed (attempt {attempt+1}/{max_retries+1})", extra={"provider": self.get_provider_name(), "model": self.get_model_name(), "error": last_error})
         
         # Return last failed response
         return LLMResponse(

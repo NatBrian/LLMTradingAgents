@@ -69,11 +69,15 @@ jobs:
           
           # Check if arena.db exists and has changed
           if [ -f "arena.db" ]; then
-            git add arena.db
+            # Export data for dashboard
+            echo "Exporting data for dashboard..."
+            python scripts/export_data.py --db arena.db --output frontend/public/data.json
+            
+            git add arena.db frontend/public/data.json
             if git diff --staged --quiet; then
               echo "No changes to database."
             else
-              git commit -m "chore: update arena.db [skip ci]"
+              git commit -m "chore: update arena.db and dashboard data [skip ci]"
               git push
             fi
           else

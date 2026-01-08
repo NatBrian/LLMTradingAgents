@@ -6,6 +6,9 @@ from datetime import datetime
 from typing import Optional
 
 from ..schemas import Order, Fill, OrderSide
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class FillEngine:
@@ -104,6 +107,8 @@ class FillEngine:
         
         # Compute slippage amount for record keeping
         slippage = self.compute_slippage(base_price, order.side) * order.qty
+        
+        logger.debug(f"Computed fill for {order.ticker}", extra={"ticker": order.ticker, "side": order.side, "qty": order.qty, "base_price": base_price, "fill_price": fill_price, "fees": fees})
         
         return Fill.from_order(
             order=order,

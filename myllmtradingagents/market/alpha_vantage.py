@@ -19,9 +19,12 @@ import json
 import hashlib
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List, Dict
 from dataclasses import dataclass, field
 import requests
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 # Alpha Vantage API configuration
@@ -36,7 +39,7 @@ class NewsSentimentData:
     The sentiment scores are computed by Alpha Vantage's NLP.
     """
     ticker: str
-    articles: list[dict] = field(default_factory=list)
+    articles: List[dict] = field(default_factory=list)
     overall_sentiment_score: Optional[float] = None  # -1.0 to 1.0
     overall_sentiment_label: Optional[str] = None  # Bearish, Bullish, Neutral
     
@@ -104,7 +107,7 @@ def _save_to_cache(ticker: str, endpoint: str, date: str, data: dict) -> None:
                 "data": data,
             }, f)
     except Exception as e:
-        print(f"Warning: Could not save cache: {e}")
+        logger.warning(f"Could not save cache: {e}", extra={"ticker": ticker, "endpoint": endpoint, "error": str(e)})
 
 
 def _make_request(function: str, params: dict) -> Optional[dict]:
@@ -129,18 +132,18 @@ def _make_request(function: str, params: dict) -> Optional[dict]:
         if "Information" in data:
             info = data["Information"]
             if "rate limit" in info.lower():
-                print(f"Alpha Vantage rate limit reached: {info}")
+                logger.warning(f"Alpha Vantage rate limit reached: {info}", extra={"info": info})
                 return None
         
         # Check for error message
         if "Error Message" in data:
-            print(f"Alpha Vantage error: {data['Error Message']}")
+            logger.error(f"Alpha Vantage error: {data['Error Message']}", extra={"error": data['Error Message']})
             return None
         
         return data
         
     except Exception as e:
-        print(f"Alpha Vantage request failed: {e}")
+        logger.error(f"Alpha Vantage request failed: {e}", extra={"function": function, "error": str(e)})
         return None
 
 
@@ -174,6 +177,7 @@ def fetch_news_sentiment(
     if use_cache:
         cached = _get_cached(ticker, "NEWS_SENTIMENT", date)
         if cached:
+            logger.debug(f"Cache hit for Alpha Vantage news sentiment", extra={"ticker": ticker})
             return _parse_news_response(ticker, cached)
     
     # Calculate date range (last 7 days)
@@ -191,6 +195,7 @@ def fetch_news_sentiment(
     data = _make_request("NEWS_SENTIMENT", params)
     
     if data:
+        logger.info(f"Fetched Alpha Vantage news sentiment", extra={"ticker": ticker, "articles": len(data.get("feed", []))})
         # Cache the response
         if use_cache:
             _save_to_cache(ticker, "NEWS_SENTIMENT", date, data)

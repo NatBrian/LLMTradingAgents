@@ -5,11 +5,14 @@ Handles portfolio state, order validation, and position tracking.
 """
 
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List, Dict, Tuple
 from copy import deepcopy
 
 from ..schemas import Order, Fill, Position, Snapshot, OrderSide
 from .fills import FillEngine
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class SimBroker:
@@ -38,7 +41,7 @@ class SimBroker:
         """
         self.cash = initial_cash
         self.initial_cash = initial_cash
-        self.positions: dict[str, Position] = {}
+        self.positions: Dict[str, Position] = {}
         self.realized_pnl = 0.0
         self.max_position_pct = max_position_pct
         
@@ -48,7 +51,7 @@ class SimBroker:
         )
         
         # Track all fills
-        self.fill_history: list[Fill] = []
+        self.fill_history: List[Fill] = []
     
     def get_position(self, ticker: str) -> Optional[Position]:
         """Get position for a ticker, or None if not held."""
@@ -59,7 +62,7 @@ class SimBroker:
         pos = self.get_position(ticker)
         return pos.qty if pos else 0
     
-    def update_prices(self, prices: dict[str, float]) -> None:
+    def update_prices(self, prices: Dict[str, float]) -> None:
         """
         Update current prices for all positions.
         
@@ -84,7 +87,7 @@ class SimBroker:
         self,
         order: Order,
         reference_price: float,
-    ) -> tuple[bool, str]:
+    ) -> Tuple[bool, str]:
         """
         Validate an order before execution.
         
@@ -158,7 +161,7 @@ class SimBroker:
         # Validate first
         is_valid, error = self.validate_order(order, fill_price)
         if not is_valid:
-            print(f"Order validation failed: {error}")
+            logger.warning(f"Order validation failed: {error}", extra={"ticker": ticker, "order": order.model_dump(), "error": error})
             return None
         
         # Apply slippage and compute fill
@@ -217,10 +220,10 @@ class SimBroker:
     
     def execute_orders(
         self,
-        orders: list[Order],
-        prices: dict[str, float],
+        orders: List[Order],
+        prices: Dict[str, float],
         timestamp: Optional[datetime] = None,
-    ) -> list[Fill]:
+    ) -> List[Fill]:
         """
         Execute multiple orders.
         
@@ -239,7 +242,7 @@ class SimBroker:
             price = prices.get(ticker)
             
             if price is None:
-                print(f"No price available for {ticker}, skipping order")
+                logger.warning(f"No price available for {ticker}, skipping order", extra={"ticker": ticker})
                 continue
             
             fill = self.execute_order(order, price, timestamp)
@@ -255,7 +258,7 @@ class SimBroker:
         self.realized_pnl = 0.0
         self.fill_history = []
     
-    def get_state_dict(self) -> dict:
+    def get_state_dict(self) -> Dict:
         """Get broker state as dict for serialization."""
         return {
             "cash": self.cash,
@@ -265,7 +268,7 @@ class SimBroker:
             "realized_pnl": self.realized_pnl,
         }
     
-    def load_state_dict(self, state: dict) -> None:
+    def load_state_dict(self, state: Dict) -> None:
         """Load broker state from dict."""
         self.cash = state.get("cash", self.initial_cash)
         self.realized_pnl = state.get("realized_pnl", 0.0)

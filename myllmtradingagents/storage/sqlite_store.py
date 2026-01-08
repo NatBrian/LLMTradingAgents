@@ -6,13 +6,18 @@ import json
 import sqlite3
 from datetime import date, datetime
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List, Dict
 
 from .base import Storage
 from ..schemas import Snapshot, RunLog, Fill, Position
+from pydantic import BaseModel, Field
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class SQLiteStorage(Storage):
+
     """SQLite storage implementation."""
     
     def __init__(self, db_path: str = "arena.db"):
@@ -39,6 +44,7 @@ class SQLiteStorage(Storage):
         schema = self._get_schema()
         self.conn.executescript(schema)
         self.conn.commit()
+        logger.info(f"Initialized SQLite storage at {self.db_path}", extra={"db_path": str(self.db_path)})
     
     def _get_schema(self) -> str:
         """Get SQL schema."""
@@ -75,7 +81,7 @@ class SQLiteStorage(Storage):
             session_type TEXT NOT NULL,
             timestamp TEXT NOT NULL,
             llm_calls_json TEXT,
-            analyst_report_json TEXT,
+            strategist_proposal_json TEXT,
             trade_plan_json TEXT,
             fills_json TEXT,
             errors_json TEXT,
@@ -139,6 +145,7 @@ class SQLiteStorage(Storage):
             VALUES (?, ?, ?, ?, ?)
         """, (competitor_id, name, provider, model, config_json))
         self.conn.commit()
+        logger.debug(f"Saved competitor {competitor_id}", extra={"competitor_id": competitor_id, "competitor_name": name})
     
     def get_competitor(self, competitor_id: str) -> Optional[dict]:
         """Get competitor by ID."""
@@ -152,7 +159,7 @@ class SQLiteStorage(Storage):
         
         return dict(row)
     
-    def list_competitors(self) -> list[dict]:
+    def list_competitors(self) -> List[dict]:
         """List all competitors."""
         rows = self.conn.execute("SELECT * FROM competitors").fetchall()
         return [dict(row) for row in rows]
@@ -177,6 +184,7 @@ class SQLiteStorage(Storage):
             snapshot.equity,
         ))
         self.conn.commit()
+        logger.debug(f"Saved snapshot for {competitor_id}", extra={"competitor_id": competitor_id, "equity": snapshot.equity})
     
     def get_latest_snapshot(self, competitor_id: str) -> Optional[Snapshot]:
         """Get the most recent snapshot for a competitor."""
@@ -197,7 +205,7 @@ class SQLiteStorage(Storage):
         competitor_id: str,
         start_date: Optional[date] = None,
         end_date: Optional[date] = None,
-    ) -> list[Snapshot]:
+    ) -> List[Snapshot]:
         """Get equity curve for a competitor."""
         query = "SELECT * FROM snapshots WHERE competitor_id = ?"
         params = [competitor_id]
@@ -238,7 +246,7 @@ class SQLiteStorage(Storage):
         self.conn.execute("""
             INSERT OR REPLACE INTO run_logs (
                 id, competitor_id, session_date, session_type, timestamp,
-                llm_calls_json, analyst_report_json, trade_plan_json,
+                llm_calls_json, strategist_proposal_json, trade_plan_json,
                 fills_json, errors_json, snapshot_before_json, snapshot_after_json
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
@@ -248,7 +256,8 @@ class SQLiteStorage(Storage):
             run_log.session_type,
             run_log.timestamp.isoformat(),
             json.dumps([c.model_dump(mode='json') for c in run_log.llm_calls]),
-            run_log.analyst_report.model_dump_json() if run_log.analyst_report else None,
+            # Save strategist_proposal (new 3-agent system)
+            run_log.strategist_proposal.model_dump_json() if run_log.strategist_proposal else None,
             run_log.trade_plan.model_dump_json() if run_log.trade_plan else None,
             json.dumps([f.model_dump(mode='json') for f in run_log.fills]),
             json.dumps(run_log.errors),
@@ -256,12 +265,24 @@ class SQLiteStorage(Storage):
             run_log.snapshot_after.model_dump_json() if run_log.snapshot_after else None,
         ))
         self.conn.commit()
+        logger.info(f"Saved run log for {run_log.competitor_id}", extra={"run_id": run_log.run_id, "competitor_id": run_log.competitor_id, "session_type": run_log.session_type})
     
     def get_run_log(self, run_id: str) -> Optional[RunLog]:
         """Get a run log by ID."""
         row = self.conn.execute(
-            "SELECT * FROM run_logs WHERE id = ?",
-            (run_id,)
+            "SELECT * FROM run_logs WHERE id = ?", (run_id,)
+        ).fetchone()
+        
+        if not row:
+            return None
+        
+        return self._row_to_run_log(row)
+    
+    def get_latest_run_log(self, competitor_id: str) -> Optional[RunLog]:
+        """Get latest run log for a competitor."""
+        row = self.conn.execute(
+            "SELECT * FROM run_logs WHERE competitor_id = ? ORDER BY timestamp DESC LIMIT 1",
+            (competitor_id,)
         ).fetchone()
         
         if not row:
@@ -274,7 +295,7 @@ class SQLiteStorage(Storage):
         competitor_id: Optional[str] = None,
         session_date: Optional[str] = None,
         limit: int = 100,
-    ) -> list[RunLog]:
+    ) -> List[RunLog]:
         """List run logs with optional filters."""
         query = "SELECT * FROM run_logs WHERE 1=1"
         params = []
@@ -295,16 +316,22 @@ class SQLiteStorage(Storage):
     
     def _row_to_run_log(self, row: sqlite3.Row) -> RunLog:
         """Convert database row to RunLog."""
-        from ..schemas import LLMCall, AnalystReport, TradePlan
+        from ..schemas import LLMCall, TradePlan, StrategistProposal
         
         llm_calls = []
         if row["llm_calls_json"]:
             for c in json.loads(row["llm_calls_json"]):
                 llm_calls.append(LLMCall(**c))
         
-        analyst_report = None
-        if row["analyst_report_json"]:
-            analyst_report = AnalystReport.model_validate_json(row["analyst_report_json"])
+        # The column stores StrategistProposal
+        strategist_proposal = None
+        if row["strategist_proposal_json"]:
+            try:
+                data = json.loads(row["strategist_proposal_json"])
+                strategist_proposal = StrategistProposal.model_validate(data)
+            except Exception:
+                # Ignore legacy data or invalid data
+                pass
         
         trade_plan = None
         if row["trade_plan_json"]:
@@ -335,14 +362,14 @@ class SQLiteStorage(Storage):
             session_type=row["session_type"],
             timestamp=datetime.fromisoformat(row["timestamp"]),
             llm_calls=llm_calls,
-            analyst_report=analyst_report,
+            strategist_proposal=strategist_proposal,
             trade_plan=trade_plan,
             fills=fills,
             errors=errors,
             snapshot_before=snapshot_before,
             snapshot_after=snapshot_after,
         )
-    
+
     # ========================================================================
     # Trades
     # ========================================================================
@@ -365,6 +392,7 @@ class SQLiteStorage(Storage):
             fill.notional,
         ))
         self.conn.commit()
+        logger.info(f"Saved trade for {competitor_id}: {fill.side} {fill.qty} {fill.ticker}", extra={"competitor_id": competitor_id, "ticker": fill.ticker, "side": fill.side, "qty": fill.qty, "price": fill.fill_price})
     
     def get_trades(
         self,
@@ -373,7 +401,7 @@ class SQLiteStorage(Storage):
         start_date: Optional[date] = None,
         end_date: Optional[date] = None,
         limit: int = 1000,
-    ) -> list[dict]:
+    ) -> List[dict]:
         """Get trades with optional filters."""
         query = "SELECT * FROM trades WHERE 1=1"
         params = []
@@ -404,7 +432,7 @@ class SQLiteStorage(Storage):
     # Leaderboard
     # ========================================================================
     
-    def get_leaderboard(self) -> list[dict]:
+    def get_leaderboard(self) -> List[dict]:
         """Get leaderboard with metrics for all competitors."""
         competitors = self.list_competitors()
         leaderboard = []

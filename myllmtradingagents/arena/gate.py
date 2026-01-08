@@ -13,6 +13,9 @@ from typing import Optional
 from ..settings import ArenaConfig, MarketConfig
 from ..market import create_market_adapter
 from ..storage import SQLiteStorage
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class SessionGate:
@@ -62,6 +65,7 @@ class SessionGate:
         # Check if trading day (except crypto which trades 24/7)
         if market.type != "crypto":
             if not adapter.is_trading_day(today):
+                logger.debug(f"Not a trading day for {market.type}", extra={"market": market.type, "date": today_str})
                 return False, f"Not a trading day for {market.type}"
         
         # Get session times
@@ -83,6 +87,7 @@ class SessionGate:
             window_end = open_time + timedelta(minutes=30)
             
             if not (window_start <= now <= window_end):
+                logger.debug(f"Outside OPEN window for {market.type}", extra={"market": market.type, "now": now.isoformat(), "open_time": open_time.isoformat()})
                 return False, f"Outside OPEN window ({open_time})"
         
         elif session_type == "CLOSE":
@@ -91,11 +96,13 @@ class SessionGate:
             window_end = close_time + timedelta(minutes=5)
             
             if not (window_start <= now <= window_end):
+                logger.debug(f"Outside CLOSE window for {market.type}", extra={"market": market.type, "now": now.isoformat(), "close_time": close_time.isoformat()})
                 return False, f"Outside CLOSE window ({close_time})"
         
         # Check if already ran today for any competitor
         for comp in self.config.competitors:
             if self.storage.has_run_today(comp.id, today_str, session_type):
+                logger.info(f"Already ran {session_type} for {comp.id} today", extra={"competitor_id": comp.id, "session_type": session_type})
                 return False, f"Already ran {session_type} for {comp.id} today"
         
         return True, "OK"
@@ -130,11 +137,13 @@ class SessionGate:
         diff = abs((now_local - target_dt).total_seconds())
         
         if diff > 600:  # 10 minutes
+            logger.debug(f"Outside crypto {session_type} window", extra={"market": market.type, "diff_seconds": diff})
             return False, f"Outside crypto {session_type} window ({time_str})"
         
         # Check if already ran
         for comp in self.config.competitors:
             if self.storage.has_run_today(comp.id, today_str, session_type):
+                logger.info(f"Already ran {session_type} for {comp.id} today", extra={"competitor_id": comp.id, "session_type": session_type})
                 return False, f"Already ran {session_type} for {comp.id} today"
         
         return True, "OK"

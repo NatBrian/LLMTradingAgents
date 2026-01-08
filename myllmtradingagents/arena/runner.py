@@ -15,7 +15,7 @@ Main orchestration flow per session (3-Agent System):
 import logging
 import uuid
 from datetime import datetime, date
-from typing import Optional
+from typing import Optional, List, Dict
 
 from ..settings import ArenaConfig, CompetitorConfig
 from ..schemas import (
@@ -40,12 +40,17 @@ from ..market import (
     fetch_price_history,
     build_market_briefing,
     MarketBriefing,
+    MarketBriefing,
     fetch_news_sentiment,
 )
+from ..market.news import fetch_news_articles
 from ..sim import SimBroker
 from ..storage import SQLiteStorage
 
 logger = logging.getLogger(__name__)
+
+# Suppress noisy yfinance errors (e.g. 401 Unauthorized)
+logging.getLogger("yfinance").setLevel(logging.CRITICAL)
 
 
 class ArenaRunner:
@@ -83,7 +88,7 @@ class ArenaRunner:
             )
         
         # Cache for brokers (one per competitor)
-        self._brokers: dict[str, SimBroker] = {}
+        self._brokers: Dict[str, SimBroker] = {}
     
     def get_broker(self, competitor: CompetitorConfig) -> SimBroker:
         """Get or create broker for a competitor."""
@@ -113,7 +118,7 @@ class ArenaRunner:
         session_type: str,  # "OPEN" or "CLOSE"
         session_date: Optional[date] = None,
         dry_run: bool = False,
-    ) -> dict:
+    ) -> Dict:
         """
         Run a trading session for all competitors.
         
@@ -128,9 +133,7 @@ class ArenaRunner:
         session_date = session_date or date.today()
         session_date_str = session_date.isoformat()
         
-        logger.info(f"{'='*60}")
-        logger.info(f"Running {session_type} session for {session_date_str}")
-        logger.info(f"{'='*60}")
+        logger.info("Starting session", extra={"session_type": session_type, "session_date": session_date_str, "dry_run": dry_run})
         
         results = {}
         
@@ -150,19 +153,21 @@ class ArenaRunner:
         all_tickers = list(set(all_tickers))
         
         # Fetch market data and compute features
-        logger.info(f"Fetching market data for {len(all_tickers)} tickers...")
+        # Fetch market data and compute features
+        logger.info(f"Fetching market data for {len(all_tickers)} tickers", extra={"ticker_count": len(all_tickers), "tickers": all_tickers})
         ticker_features = self._fetch_features(market_adapters, all_tickers)
         
         # Build comprehensive briefings with fundamentals, earnings, insider, history
-        logger.info(f"Building comprehensive market briefings...")
+        # Build comprehensive briefings with fundamentals, earnings, insider, history
+        logger.info("Building comprehensive market briefings")
         briefings = self._build_briefings(ticker_features, session_date_str)
         
         # Get current prices for all tickers
-        prices = self._get_prices(market_adapters, all_tickers, session_type, session_date)
+        prices = self._get_prices(market_adapters, all_tickers, session_type, session_date, dry_run)
         
         # Run each competitor
         for competitor in self.config.competitors:
-            logger.info(f"--- Running competitor: {competitor.name} ({competitor.provider}/{competitor.model}) ---")
+            logger.info(f"Running competitor: {competitor.name}", extra={"competitor_id": competitor.id, "provider": competitor.provider, "model": competitor.model})
             
             try:
                 result = self._run_competitor(
@@ -176,24 +181,22 @@ class ArenaRunner:
                 )
                 results[competitor.id] = result
             except Exception as e:
-                logger.error(f"Error running competitor {competitor.id}: {e}")
+                logger.error(f"Error running competitor {competitor.id}: {e}", extra={"competitor_id": competitor.id, "error": str(e)}, exc_info=True)
                 results[competitor.id] = {"error": str(e)}
         
         return results
     
     def _fetch_features(
         self,
-        market_adapters: dict,
-        tickers: list[str],
-    ) -> list[TickerFeatures]:
+        market_adapters: Dict,
+        tickers: List[str],
+    ) -> List[TickerFeatures]:
         """Fetch and compute features for all tickers."""
         features_list = []
         
         # Fetch news headlines (optional, fail-soft)
-        try:
-            news_dict = fetch_headlines_batch(tickers, max_per_ticker=3)
-        except Exception:
-            news_dict = {}
+        # REMOVED: Redundant call. Headlines are fetched in build_market_briefing via fetch_news_sentiment or fallback.
+        news_dict = {}
         
         for market_type, (adapter, market_tickers) in market_adapters.items():
             for ticker in market_tickers:
@@ -203,16 +206,16 @@ class ArenaRunner:
                     features = compute_features(ticker, bars, headlines)
                     features_list.append(features)
                 except Exception as e:
-                    logger.warning(f"Error fetching features for {ticker}: {e}")
+                    logger.warning(f"Error fetching features for {ticker}: {e}", extra={"ticker": ticker, "error": str(e)})
                     features_list.append(TickerFeatures(ticker=ticker, date=""))
         
         return features_list
     
     def _build_briefings(
         self,
-        ticker_features: list[TickerFeatures],
+        ticker_features: List[TickerFeatures],
         session_date_str: str,
-    ) -> list[MarketBriefing]:
+    ) -> List[MarketBriefing]:
         """
         Build comprehensive MarketBriefing objects from all data sources.
         
@@ -258,6 +261,17 @@ class ArenaRunner:
             except Exception as e:
                 logger.debug(f"  Warning: Could not fetch Alpha Vantage news for {ticker}: {e}")
             
+            # Fallback: If no Alpha Vantage articles, try Yahoo Finance
+            news_articles = []
+            if news_sentiment and news_sentiment.articles:
+                # Use Alpha Vantage articles if available
+                pass
+            else:
+                try:
+                    news_articles = fetch_news_articles(ticker, limit=5)
+                except Exception as e:
+                    logger.debug(f"  Warning: Could not fetch Yahoo Finance news for {ticker}: {e}")
+            
             # Build the comprehensive briefing
             briefing = build_market_briefing(
                 ticker=ticker,
@@ -282,6 +296,7 @@ class ArenaRunner:
                 insider=insider,
                 price_history=price_history,
                 news_headlines=features.news_headlines,
+                news_articles=news_articles,
             )
             
             # Add news sentiment if available
@@ -294,11 +309,12 @@ class ArenaRunner:
     
     def _get_prices(
         self,
-        market_adapters: dict,
-        tickers: list[str],
+        market_adapters: Dict,
+        tickers: List[str],
         session_type: str,
         session_date: date,
-    ) -> dict[str, float]:
+        dry_run: bool = False,
+    ) -> Dict[str, float]:
         """Get execution prices for all tickers."""
         prices = {}
         
@@ -311,12 +327,23 @@ class ArenaRunner:
                         price = adapter.get_close_price(ticker, session_date)
                     
                     if price is None:
+                        # CRITICAL FIX: Do NOT fall back to latest price for specific sessions.
+                        # If we are running an OPEN/CLOSE session and data is missing, we should NOT trade.
+                        # EXCEPTION: If dry_run is True, we allow fallback to test the flow.
+                        if session_type in ["OPEN", "CLOSE"] and not dry_run:
+                            logger.warning(f"Missing {session_type} price for {ticker}, skipping execution", extra={"ticker": ticker, "session_type": session_type})
+                            continue
+                        
+                        # Only fallback if we are not in a strict session (e.g. ad-hoc analysis) OR dry_run
+                        if dry_run:
+                            logger.info(f"Missing {session_type} price for {ticker}, using latest price (dry_run)", extra={"ticker": ticker})
+                        
                         price = adapter.get_latest_price(ticker)
                     
                     if price:
                         prices[ticker.upper()] = price
                 except Exception as e:
-                    logger.warning(f"Error getting price for {ticker}: {e}")
+                    logger.warning(f"Error getting price for {ticker}: {e}", extra={"ticker": ticker, "error": str(e)})
         
         return prices
     
@@ -325,11 +352,11 @@ class ArenaRunner:
         competitor: CompetitorConfig,
         session_type: str,
         session_date_str: str,
-        ticker_features: list[TickerFeatures],
-        briefings: list[MarketBriefing],
-        prices: dict[str, float],
+        ticker_features: List[TickerFeatures],
+        briefings: List[MarketBriefing],
+        prices: Dict[str, float],
         dry_run: bool,
-    ) -> dict:
+    ) -> Dict:
         """Run a single competitor through the trading flow."""
         run_id = str(uuid.uuid4())[:8]
         errors = []
@@ -337,7 +364,7 @@ class ArenaRunner:
         
         # Check if already run today
         if not dry_run and self.storage.has_run_today(competitor.id, session_date_str, session_type):
-            logger.info(f"  Already ran {session_type} session today, skipping")
+            logger.info(f"Already ran {session_type} session today, skipping", extra={"competitor_id": competitor.id, "session_type": session_type})
             return {"skipped": True, "reason": "already_ran"}
         
         # Check call budget
@@ -346,7 +373,7 @@ class ArenaRunner:
         limit = self.config.daily_call_limits.get(competitor.provider, 100)
         
         if current_count + 2 > limit:
-            logger.warning(f"  Daily call limit reached for {competitor.provider}, skipping")
+            logger.warning(f"Daily call limit reached for {competitor.provider}, skipping", extra={"provider": competitor.provider, "current_count": current_count, "limit": limit})
             return {"skipped": True, "reason": "call_limit"}
         
         # Get broker and snapshot
@@ -371,12 +398,13 @@ class ArenaRunner:
         # ====================================================================
         # Call #1: Strategist (with comprehensive briefings)
         # ====================================================================
-        logger.info(f"  Call #1: Strategist (analyzing {len(briefings)} tickers)...")
+        # Call #1: Strategist (with comprehensive briefings)
+        # ====================================================================
+        logger.info(f"Call #1: Strategist", extra={"ticker_count": len(briefings)})
         
         # Pass briefings (preferred) and ticker_features (fallback)
         strategist_result = strategist.invoke({
             "briefings": briefings,
-            "ticker_features": ticker_features,  # Legacy fallback
             "session_date": session_date_str,
             "session_type": session_type,
         })
@@ -399,13 +427,13 @@ class ArenaRunner:
         strategist_proposal: Optional[StrategistProposal] = None
         if strategist_result.success:
             strategist_proposal = strategist_result.output
-            logger.info(f"    ✓ Got {len(strategist_proposal.proposals)} proposals")
+            logger.info(f"Got {len(strategist_proposal.proposals)} proposals", extra={"proposal_count": len(strategist_proposal.proposals)})
         else:
             errors.append(f"Strategist call failed: {strategist_result.error}")
             
             # Attempt repair if we got a response
             if strategist_result.raw_response:
-                logger.info(f"  Attempting repair for Strategist...")
+                logger.info("Attempting repair for Strategist")
                 strategist_proposal = self._repair_json_parse(
                     strategist_result.raw_response,
                     strategist_result.error or "Unknown error",
@@ -422,9 +450,15 @@ class ArenaRunner:
         trade_plan = None
         
         if strategist_proposal:
-            logger.info(f"  Call #2: RiskGuard...")
-            
-            risk_guard_result = risk_guard.invoke({
+            # Check call budget before second call
+            current_count = self.storage.get_daily_call_count(competitor.provider, today_str)
+            if current_count + 1 > limit:
+                logger.warning(f"Daily call limit reached for {competitor.provider} before RiskGuard, skipping", extra={"provider": competitor.provider})
+                errors.append("Daily call limit reached before RiskGuard")
+            else:
+                logger.info("Call #2: RiskGuard")
+                
+                risk_guard_result = risk_guard.invoke({
                 "proposal": strategist_proposal,
                 "snapshot": snapshot_before,
                 "prices": prices,
@@ -449,15 +483,15 @@ class ArenaRunner:
             if risk_guard_result.success:
                 trade_plan = risk_guard_result.output
                 if trade_plan.orders:
-                    logger.info(f"    ✓ Approved {len(trade_plan.orders)} orders")
+                    logger.info(f"Approved {len(trade_plan.orders)} orders", extra={"order_count": len(trade_plan.orders)})
                 else:
-                    logger.info(f"    ✓ HOLD decision (no orders)")
+                    logger.info("HOLD decision (no orders)")
             else:
                 errors.append(f"RiskGuard call failed: {risk_guard_result.error}")
                 
                 # Attempt repair
                 if risk_guard_result.raw_response:
-                    logger.info(f"  Attempting repair for RiskGuard...")
+                    logger.info("Attempting repair for RiskGuard")
                     trade_plan = self._repair_json_parse(
                         risk_guard_result.raw_response,
                         risk_guard_result.error or "Unknown error",
@@ -476,7 +510,7 @@ class ArenaRunner:
         fills = []
         
         if trade_plan and trade_plan.orders and not dry_run:
-            logger.info(f"  Executing {len(trade_plan.orders)} orders...")
+            logger.info(f"Executing {len(trade_plan.orders)} orders", extra={"order_count": len(trade_plan.orders)})
             
             fills = broker.execute_orders(
                 orders=trade_plan.orders,
@@ -484,13 +518,13 @@ class ArenaRunner:
                 timestamp=datetime.utcnow(),
             )
             
-            logger.info(f"  Filled {len(fills)} orders")
+            logger.info(f"Filled {len(fills)} orders", extra={"fill_count": len(fills)})
             
             # Save trades
             for fill in fills:
                 self.storage.save_trade(competitor.id, fill)
         elif trade_plan:
-            logger.info(f"  HOLD decision (no orders)")
+            logger.info("HOLD decision (no orders)")
         
         # Get snapshot after
         broker.update_prices(prices)
@@ -513,7 +547,6 @@ class ArenaRunner:
                 session_date=session_date_str,
                 session_type=session_type,
                 llm_calls=llm_calls,
-                analyst_report=None,  # Legacy field, no longer used in 3-agent system
                 strategist_proposal=strategist_proposal,
                 trade_plan=trade_plan,
                 fills=fills,
@@ -538,9 +571,9 @@ class ArenaRunner:
         malformed: str,
         error: str,
         model_class,
-        schema: dict,
+        schema: Dict,
         llm_client,
-        llm_calls: list,
+        llm_calls: List,
         competitor: CompetitorConfig,
     ):
         """
@@ -548,7 +581,7 @@ class ArenaRunner:
         
         This is used when the Strategist or RiskGuard returns invalid JSON.
         """
-        logger.info(f"  Attempting JSON repair...")
+        logger.info("Attempting JSON repair", extra={"error": error})
         
         system_prompt, user_prompt = build_repair_prompt(malformed, error, schema)
         
@@ -578,7 +611,7 @@ class ArenaRunner:
             try:
                 return model_class.model_validate_json(repair_response.content)
             except Exception as e:
-                logger.warning(f"  Repair failed: {e}")
+                logger.warning(f"Repair failed: {e}", extra={"error": str(e)})
         
         return None
 

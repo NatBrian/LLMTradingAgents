@@ -15,7 +15,7 @@ NO interpretive signals - the LLM does all analysis.
 """
 
 from dataclasses import dataclass, field
-from typing import Optional, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING, List, Dict
 
 from .fundamentals import FundamentalsData
 from .earnings import EarningsData
@@ -25,6 +25,9 @@ from .price_history import PriceHistoryData, PriceBar
 # Import Alpha Vantage types (optional)
 if TYPE_CHECKING:
     from .alpha_vantage import NewsSentimentData
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -72,7 +75,7 @@ class MarketBriefing:
     low_52w: Optional[float] = None
     
     # Price history
-    price_history: list[PriceBar] = field(default_factory=list)
+    price_history: List[PriceBar] = field(default_factory=list)
     
     # Fundamentals
     fundamentals: Optional[FundamentalsData] = None
@@ -84,8 +87,8 @@ class MarketBriefing:
     insider: Optional[InsiderData] = None
     
     # News
-    news_headlines: list[str] = field(default_factory=list)
-    news_articles: list[dict] = field(default_factory=list)
+    news_headlines: List[str] = field(default_factory=list)
+    news_articles: List[dict] = field(default_factory=list)
     
     # Optional: Alpha Vantage news sentiment (if ALPHA_VANTAGE_API_KEY is set)
     news_sentiment: Optional["NewsSentimentData"] = None
@@ -355,8 +358,8 @@ def build_market_briefing(
     earnings: EarningsData = None,
     insider: InsiderData = None,
     price_history: PriceHistoryData = None,
-    news_headlines: list[str] = None,
-    news_articles: list[dict] = None,
+    news_headlines: List[str] = None,
+    news_articles: List[dict] = None,
 ) -> MarketBriefing:
     """
     Build a comprehensive market briefing from all data sources.
@@ -369,6 +372,8 @@ def build_market_briefing(
     Returns:
         MarketBriefing ready for to_prompt_string()
     """
+    logger.debug(f"Building market briefing for {ticker}", extra={"ticker": ticker, "date": date})
+    
     briefing = MarketBriefing(
         ticker=ticker.upper(),
         date=date,

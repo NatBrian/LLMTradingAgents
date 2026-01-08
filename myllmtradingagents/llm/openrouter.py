@@ -12,6 +12,9 @@ from typing import Optional
 import httpx
 
 from .base import LLMClient, LLMResponse
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class OpenRouterClient(LLMClient):
@@ -91,6 +94,8 @@ class OpenRouterClient(LLMClient):
             "X-Title": "MyLLMTradingAgents",
         }
         
+        logger.debug("Sending OpenRouter request", extra={"model": self.model, "json_mode": json_mode})
+        
         start_time = time.time()
         
         try:
@@ -110,6 +115,8 @@ class OpenRouterClient(LLMClient):
                     model=self.model,
                     error=f"HTTP {response.status_code}: {response.text}",
                 )
+            
+            logger.debug("OpenRouter response received", extra={"latency_ms": latency_ms, "status_code": response.status_code})
             
             data = response.json()
             
@@ -147,6 +154,7 @@ class OpenRouterClient(LLMClient):
                 error=f"Request timeout after {self.timeout}s",
             )
         except Exception as e:
+            logger.error(f"OpenRouter request failed: {e}", extra={"error": str(e)})
             latency_ms = int((time.time() - start_time) * 1000)
             return LLMResponse(
                 content="",

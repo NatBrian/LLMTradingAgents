@@ -5,12 +5,15 @@ Crypto market adapter using ccxt for data fetching.
 import os
 from datetime import date, datetime, timedelta, time
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List, Tuple
 
 import pandas as pd
 import pytz
 
 from .base import MarketAdapter
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class CryptoAdapter(MarketAdapter):
@@ -27,7 +30,7 @@ class CryptoAdapter(MarketAdapter):
         cache_dir: Optional[str] = None,
         cache_days: int = 1,
         exchange: str = "binance",
-        session_times: Optional[list[str]] = None,  # ["HH:MM", "HH:MM"]
+        session_times: Optional[List[str]] = None,  # ["HH:MM", "HH:MM"]
         timezone: str = "UTC",
     ):
         """
@@ -110,15 +113,18 @@ class CryptoAdapter(MarketAdapter):
             cache_age = datetime.now() - datetime.fromtimestamp(cache_file.stat().st_mtime)
             if cache_age.days < self.cache_days:
                 try:
+                    logger.debug(f"Cache hit for {symbol}", extra={"symbol": symbol, "cache_age_days": cache_age.days})
                     return pd.read_parquet(cache_file)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.warning(f"Failed to read cache for {symbol}: {e}", extra={"symbol": symbol, "error": str(e)})
         
         # Fetch from CCXT
         try:
             # Calculate since timestamp
             since_date = end_date - timedelta(days=days + 5)
             since_ts = int(datetime.combine(since_date, datetime.min.time()).timestamp() * 1000)
+            
+            logger.info(f"Fetching crypto data for {symbol}", extra={"symbol": symbol, "since": since_date.isoformat()})
             
             # Fetch OHLCV
             ohlcv = self.exchange.fetch_ohlcv(
@@ -146,16 +152,17 @@ class CryptoAdapter(MarketAdapter):
             # Cache
             try:
                 df.to_parquet(cache_file)
-            except Exception:
-                pass
+                logger.debug(f"Cache written for {symbol}", extra={"symbol": symbol, "rows": len(df)})
+            except Exception as e:
+                logger.warning(f"Failed to write cache for {symbol}: {e}", extra={"symbol": symbol, "error": str(e)})
             
             return df
             
         except Exception as e:
-            print(f"Error fetching crypto data for {symbol}: {e}")
+            logger.error(f"Error fetching crypto data for {symbol}: {e}", extra={"symbol": symbol, "error": str(e)})
             return pd.DataFrame(columns=["Date", "Open", "High", "Low", "Close", "Volume"])
     
-    def get_session_times(self, date: date) -> Optional[tuple[datetime, datetime]]:
+    def get_session_times(self, date: date) -> Optional[Tuple[datetime, datetime]]:
         """
         Get "session" times for crypto (always trading).
         
@@ -187,7 +194,8 @@ class CryptoAdapter(MarketAdapter):
         try:
             ticker_data = self.exchange.fetch_ticker(symbol)
             return float(ticker_data.get("last") or ticker_data.get("close", 0))
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Error fetching ticker for {symbol}: {e}", extra={"symbol": symbol, "error": str(e)})
             # Fallback to last daily bar
             bars = self.get_daily_bars(ticker, days=2)
             if bars.empty:

@@ -3,10 +3,13 @@ Portfolio metrics computation.
 """
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, List
 import numpy as np
 
 from ..schemas import Snapshot
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -34,7 +37,7 @@ class EquityMetrics:
 
 
 def compute_metrics(
-    equity_curve: list[float],
+    equity_curve: List[float],
     initial_equity: float,
     num_trades: int = 0,
     total_traded_value: float = 0.0,
@@ -92,6 +95,8 @@ def compute_metrics(
     avg_equity = np.mean(equity_array) if len(equity_array) > 0 else initial_equity
     turnover = (total_traded_value / avg_equity) if avg_equity > 0 else 0.0
     
+    logger.debug(f"Computed metrics: Return={total_return:.2%}, Sharpe={sharpe}, DD={max_dd:.2%}", extra={"total_return": total_return, "sharpe": sharpe, "max_drawdown": max_dd})
+    
     return EquityMetrics(
         total_return=total_return,
         total_return_abs=total_return_abs,
@@ -129,7 +134,7 @@ def _compute_max_drawdown(equity_array: np.ndarray) -> float:
 
 
 def compute_metrics_from_snapshots(
-    snapshots: list[Snapshot],
+    snapshots: List[Snapshot],
     num_trades: int = 0,
     total_traded_value: float = 0.0,
 ) -> EquityMetrics:

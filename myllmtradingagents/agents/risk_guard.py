@@ -6,6 +6,7 @@ It receives proposals from the Strategist and validates them before execution.
 """
 
 import json
+from typing import Dict
 
 from .base import Agent, AgentResult
 from ..schemas import (
@@ -14,6 +15,9 @@ from ..schemas import (
     TradePlan,
     get_trade_plan_schema,
 )
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 # ============================================================================
@@ -40,7 +44,7 @@ CRITICAL RULES:
 
 POSITION SIZING GUIDE:
 - For BUY: Calculate qty as (cash * target_allocation_pct / 100) / estimated_price
-- Round down to whole shares
+- Round down to whole shares. If result is 0, SKIP the trade.
 - Ensure total position value does not exceed max_position_pct of equity
 
 Current Portfolio:
@@ -99,7 +103,7 @@ class RiskGuard(Agent):
     
     def invoke(
         self,
-        context: dict,
+        context: Dict,
     ) -> AgentResult:
         """
         Invoke the Risk Guard agent.
@@ -117,9 +121,11 @@ class RiskGuard(Agent):
         """
         proposal: StrategistProposal = context["proposal"]
         snapshot: Snapshot = context["snapshot"]
-        prices: dict[str, float] = context.get("prices", {})
+        prices: Dict[str, float] = context.get("prices", {})
         max_orders: int = context.get("max_orders", 3)
         max_position_pct: float = context.get("max_position_pct", 25.0)
+        
+        logger.info("Invoking RiskGuard", extra={"proposal_count": len(proposal.proposals), "cash": snapshot.cash, "equity": snapshot.equity})
         
         # Build portfolio summary
         portfolio_lines = [
@@ -179,6 +185,8 @@ class RiskGuard(Agent):
             json_mode=True,
             temperature=0.5,  # Lower temp for more conservative decisions
         )
+        
+        logger.debug("RiskGuard LLM response received", extra={"latency_ms": response.latency_ms, "success": response.success})
         
         # Parse and return
         return self._parse_response(response, TradePlan, prompt=user_prompt, system_prompt=system_prompt)

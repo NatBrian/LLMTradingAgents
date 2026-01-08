@@ -4,9 +4,12 @@ Abstract base class for agents.
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any, Optional, Dict
 
 from ..llm.base import LLMClient, LLMResponse
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -55,7 +58,7 @@ class Agent(ABC):
         pass
     
     @abstractmethod
-    def invoke(self, context: dict) -> AgentResult:
+    def invoke(self, context: Dict) -> AgentResult:
         """
         Invoke the agent with the given context.
         
@@ -81,6 +84,7 @@ class Agent(ABC):
             AgentResult with parsed output or error
         """
         if not response.success:
+            logger.warning(f"LLM response failed for {self.name}", extra={"agent": self.name, "error": response.error})
             return AgentResult(
                 success=False,
                 output=None,
@@ -109,6 +113,7 @@ class Agent(ABC):
                 latency_ms=response.latency_ms,
             )
         except Exception as e:
+            logger.warning(f"JSON parse error for {self.name}", extra={"agent": self.name, "error": str(e), "content_preview": response.content[:200]})
             return AgentResult(
                 success=False,
                 output=None,

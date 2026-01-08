@@ -21,34 +21,30 @@ from .schemas import (
     RunLog,
     OrderSide,
     OrderType,
-    Signal,
+    LLMCall,
     # 3-Agent System schemas
     ProposedAction,
-    TickerProposal,
     StrategistProposal,
+    TickerProposal,
     TickerFeatures,
-    # Legacy (kept for backward compatibility with stored data)
-    AnalystReport,
-    TickerAnalysis,
+    get_trade_plan_schema,
+    get_strategist_proposal_schema,
 )
 
 __all__ = [
-    # Core trading
+    "OrderSide",
+    "OrderType",
+    "ProposedAction",
     "Order",
     "Fill",
     "Position",
     "Snapshot",
-    "TradePlan",
-    "RunLog",
-    "OrderSide",
-    "OrderType",
-    "Signal",
-    # 3-Agent System
-    "ProposedAction",
-    "TickerProposal",
-    "StrategistProposal",
     "TickerFeatures",
-    # Legacy
-    "AnalystReport",
-    "TickerAnalysis",
+    "StrategistProposal",
+    "TickerProposal",
+    "TradePlan",
+    "LLMCall",
+    "RunLog",
+    "get_trade_plan_schema",
+    "get_strategist_proposal_schema",
 ]

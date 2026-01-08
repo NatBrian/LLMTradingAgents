@@ -8,11 +8,14 @@ Loads configuration from:
 
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, List, Dict, Union
 from dataclasses import dataclass, field
 
 import yaml
 from dotenv import load_dotenv
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 # Load .env file from project root or current directory
@@ -51,10 +54,10 @@ class CompetitorConfig:
 class MarketConfig:
     """Configuration for a market."""
     type: str  # "us_equity", "sg_equity", "crypto"
-    tickers: list[str] = field(default_factory=list)
+    tickers: List[str] = field(default_factory=list)
     timezone: str = "UTC"
     # For crypto: session times as HH:MM strings
-    session_times: list[str] = field(default_factory=lambda: ["00:00", "12:00"])
+    session_times: List[str] = field(default_factory=lambda: ["00:00", "12:00"])
     # For equities: optional manual open/close times
     open_time: str = ""
     close_time: str = ""
@@ -75,14 +78,14 @@ class ArenaConfig:
     """Full arena configuration."""
     name: str = "MyLLMTradingAgents Arena"
     timezone: str = "UTC"
-    db_path: str = "arena.db"
+    db_path: str = "~/.myllmtradingagents/arena.db"
     cache_dir: str = "~/.myllmtradingagents/cache"
-    markets: list[MarketConfig] = field(default_factory=list)
-    competitors: list[CompetitorConfig] = field(default_factory=list)
+    markets: List[MarketConfig] = field(default_factory=list)
+    competitors: List[CompetitorConfig] = field(default_factory=list)
     simulation: SimulationConfig = field(default_factory=SimulationConfig)
     
     # Per-provider daily call limits (for budget control)
-    daily_call_limits: dict[str, int] = field(default_factory=lambda: {
+    daily_call_limits: Dict[str, int] = field(default_factory=lambda: {
         "openrouter": 100,
         "gemini": 100,
     })
@@ -90,26 +93,27 @@ class ArenaConfig:
     def __post_init__(self):
         # Expand ~ in paths
         self.cache_dir = str(Path(self.cache_dir).expanduser())
-        if not Path(self.db_path).is_absolute():
-            # Keep relative db_path as-is
-            pass
+        self.db_path = str(Path(self.db_path).expanduser())
 
 
-def load_config(config_path: str | Path) -> ArenaConfig:
+def load_config(config_path: Union[str, Path]) -> ArenaConfig:
     """Load arena configuration from YAML file."""
     config_path = Path(config_path)
     
     if not config_path.exists():
+        logger.error(f"Config file not found: {config_path}")
         raise FileNotFoundError(f"Config file not found: {config_path}")
     
+    logger.info(f"Loading config from {config_path}")
     with open(config_path, "r") as f:
         raw = yaml.safe_load(f)
     
     return parse_config(raw)
 
 
-def parse_config(raw: dict[str, Any]) -> ArenaConfig:
+def parse_config(raw: Dict[str, Any]) -> ArenaConfig:
     """Parse raw YAML dict into ArenaConfig."""
+    logger.debug("Parsing configuration dictionary")
     # Parse markets
     markets = []
     for m in raw.get("markets", []):

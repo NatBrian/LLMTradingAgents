@@ -4,9 +4,12 @@ Abstract base class for market data adapters.
 
 from abc import ABC, abstractmethod
 from datetime import date, datetime
-from typing import Optional
+from typing import Optional, Tuple
 
 import pandas as pd
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class MarketAdapter(ABC):
@@ -34,7 +37,7 @@ class MarketAdapter(ABC):
         pass
     
     @abstractmethod
-    def get_session_times(self, date: date) -> Optional[tuple[datetime, datetime]]:
+    def get_session_times(self, date: date) -> Optional[Tuple[datetime, datetime]]:
         """
         Get market open and close times for a given date.
         
@@ -86,6 +89,7 @@ class MarketAdapter(ABC):
         """
         bars = self.get_daily_bars(ticker, days=5, end_date=date)
         if bars.empty:
+            logger.debug(f"No bars found for {ticker} on {date}", extra={"ticker": ticker, "date": date.isoformat()})
             return None
         
         date_str = date.strftime("%Y-%m-%d")
@@ -110,6 +114,7 @@ class MarketAdapter(ABC):
         """
         bars = self.get_daily_bars(ticker, days=5, end_date=date)
         if bars.empty:
+            logger.debug(f"No bars found for {ticker} on {date}", extra={"ticker": ticker, "date": date.isoformat()})
             return None
         
         date_str = date.strftime("%Y-%m-%d")

@@ -14,25 +14,21 @@ from datetime import date, datetime
 from pathlib import Path
 
 import click
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @click.group()
+@click.option("--debug", is_flag=True, help="Enable debug logging")
 @click.version_option(version="0.1.0", prog_name="myllmtradingagents")
-def main():
+def main(debug):
     """MyLLMTradingAgents - Minimal LLM Trading Arena"""
-    import logging
+    from .logging_config import setup_logging
     
+    level = "DEBUG" if debug else "INFO"
     # Configure logging
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        datefmt="%H:%M:%S",
-    )
-    
-    # Silence noisy libraries
-    logging.getLogger("httpx").setLevel(logging.WARNING)
-    logging.getLogger("yfinance").setLevel(logging.WARNING)
-    logging.getLogger("urllib3").setLevel(logging.WARNING)
+    setup_logging(level=level)
 
 
 @main.command()
@@ -65,6 +61,7 @@ def main():
 )
 def run(config: str, session: str, date: str, dry_run: bool, force: bool):
     """Run a trading session for all competitors."""
+    logger.info("Starting run command", extra={"config": config, "session": session, "date": date, "dry_run": dry_run, "force": force})
     from .settings import load_config
     from .arena import ArenaRunner
     
@@ -77,6 +74,7 @@ def run(config: str, session: str, date: str, dry_run: bool, force: bool):
         try:
             session_date = datetime.strptime(date, "%Y-%m-%d").date()
         except ValueError:
+            logger.error(f"Invalid date format: {date}", extra={"date": date})
             click.echo(f"Invalid date format: {date}. Use YYYY-MM-DD", err=True)
             sys.exit(1)
     
@@ -114,6 +112,9 @@ def run(config: str, session: str, date: str, dry_run: bool, force: bool):
             
             if result.get("errors"):
                 click.echo(f"  Errors: {result['errors']}")
+                logger.warning(f"Competitor {competitor_id} had errors", extra={"competitor_id": competitor_id, "errors": result['errors']})
+    
+    logger.info("Run command completed")
 
 
 @main.command()
@@ -125,6 +126,7 @@ def run(config: str, session: str, date: str, dry_run: bool, force: bool):
 )
 def init_db(config: str):
     """Initialize the database with schema."""
+    logger.info("Starting init-db command", extra={"config": config})
     from .settings import load_config
     from .storage import SQLiteStorage
     
@@ -150,6 +152,7 @@ def init_db(config: str):
         click.echo(f"  Added competitor: {comp.name}")
     
     click.echo("Done!")
+    logger.info("Database initialization completed")
 
 
 @main.command()
@@ -161,6 +164,7 @@ def init_db(config: str):
 )
 def status(config: str):
     """Show current arena status."""
+    logger.info("Starting status command", extra={"config": config})
     from .settings import load_config
     from .storage import SQLiteStorage
     
@@ -214,6 +218,7 @@ def status(config: str):
 )
 def dashboard(port: int, config: str):
     """Launch the Streamlit dashboard."""
+    logger.info("Starting dashboard command", extra={"port": port, "config": config})
     import subprocess
     
     dashboard_path = Path(__file__).parent.parent / "dashboard" / "streamlit_app.py"
@@ -246,6 +251,7 @@ def dashboard(port: int, config: str):
 )
 def next_session(config: str):
     """Show when the next trading session will run."""
+    logger.info("Starting next-session command", extra={"config": config})
     from .settings import load_config
     from .arena import SessionGate
     

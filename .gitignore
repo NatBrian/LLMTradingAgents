@@ -55,5 +55,9 @@ logs/
 Thumbs.db
 
 # Project specific
-arena.db
 .myllmtradingagents/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+

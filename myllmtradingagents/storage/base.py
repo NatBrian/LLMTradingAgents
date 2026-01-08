@@ -3,7 +3,7 @@ Abstract storage interface.
 """
 
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import Optional, List, Dict
 from datetime import date
 
 from ..schemas import Snapshot, RunLog, Fill
@@ -39,7 +39,7 @@ class Storage(ABC):
         pass
     
     @abstractmethod
-    def list_competitors(self) -> list[dict]:
+    def list_competitors(self) -> List[dict]:
         """List all competitors."""
         pass
     
@@ -63,7 +63,7 @@ class Storage(ABC):
         competitor_id: str,
         start_date: Optional[date] = None,
         end_date: Optional[date] = None,
-    ) -> list[Snapshot]:
+    ) -> List[Snapshot]:
         """Get equity curve (list of snapshots) for a competitor."""
         pass
     
@@ -87,7 +87,7 @@ class Storage(ABC):
         competitor_id: Optional[str] = None,
         session_date: Optional[str] = None,
         limit: int = 100,
-    ) -> list[RunLog]:
+    ) -> List[RunLog]:
         """List run logs with optional filters."""
         pass
     
@@ -112,7 +112,7 @@ class Storage(ABC):
         start_date: Optional[date] = None,
         end_date: Optional[date] = None,
         limit: int = 1000,
-    ) -> list[dict]:
+    ) -> List[dict]:
         """Get trades with optional filters."""
         pass
     
@@ -121,7 +121,7 @@ class Storage(ABC):
     # ========================================================================
     
     @abstractmethod
-    def get_leaderboard(self) -> list[dict]:
+    def get_leaderboard(self) -> List[dict]:
         """
         Get leaderboard with metrics for all competitors.
         
