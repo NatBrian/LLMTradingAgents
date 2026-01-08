@@ -158,6 +158,19 @@ export interface TradeRecord {
 }
 
 // ============================================
+// Market Data (OHLCV for charts)
+// ============================================
+
+export interface OHLCVBar {
+    date: string;
+    open: number;
+    high: number;
+    low: number;
+    close: number;
+    volume: number;
+}
+
+// ============================================
 // Dashboard Data (exported from arena.db)
 // ============================================
 
@@ -173,6 +186,7 @@ export interface DashboardData {
     runLogs: RunLog[];
     trades: TradeRecord[];
     snapshots: Record<string, Snapshot>;
+    marketData?: Record<string, OHLCVBar[]>;
 }
 
 // ============================================

@@ -13,9 +13,17 @@ from __future__ import annotations
 import argparse
 import json
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, Dict, List
+
+# Optional yfinance import for market data
+try:
+    import yfinance as yf
+    HAS_YFINANCE = True
+except ImportError:
+    HAS_YFINANCE = False
+    print("[INFO] yfinance not available, market data will be skipped")
 
 
 def get_connection(db_path: str) -> sqlite3.Connection:
@@ -316,6 +324,55 @@ def get_metadata(conn: sqlite3.Connection) -> dict:
     }
 
 
+def fetch_market_data(conn: sqlite3.Connection, days: int = 30) -> Dict[str, List[dict]]:
+    """Fetch OHLCV market data for traded tickers using yfinance."""
+    if not HAS_YFINANCE:
+        return {}
+    
+    cursor = conn.cursor()
+    
+    # Get unique tickers from trades
+    cursor.execute("SELECT DISTINCT ticker FROM trades")
+    tickers = [row['ticker'] for row in cursor.fetchall()]
+    
+    if not tickers:
+        return {}
+    
+    market_data = {}
+    end_date = datetime.now()
+    start_date = end_date - timedelta(days=days + 10)  # Buffer for weekends
+    
+    for ticker in tickers:
+        try:
+            stock = yf.Ticker(ticker)
+            df = stock.history(start=start_date, end=end_date)
+            
+            if df.empty:
+                print(f"  [WARN] No market data found for {ticker}")
+                continue
+            
+            bars = []
+            for idx, row in df.iterrows():
+                date_str = idx.strftime('%Y-%m-%d') if hasattr(idx, 'strftime') else str(idx)[:10]
+                bars.append({
+                    'date': date_str,
+                    'open': round(float(row['Open']), 2),
+                    'high': round(float(row['High']), 2),
+                    'low': round(float(row['Low']), 2),
+                    'close': round(float(row['Close']), 2),
+                    'volume': int(row.get('Volume', 0)),
+                })
+            
+            # Sort by date ascending for charting
+            bars.sort(key=lambda x: x['date'])
+            market_data[ticker] = bars[:days]
+            
+        except Exception as e:
+            print(f"  [WARN] Failed to fetch market data for {ticker}: {e}")
+    
+    return market_data
+
+
 def export_data(db_path: str, output_path: str) -> None:
     """Export all data to JSON file."""
     conn = get_connection(db_path)
@@ -330,6 +387,7 @@ def export_data(db_path: str, output_path: str) -> None:
             'runLogs': fetch_run_logs(conn),
             'trades': fetch_trades(conn),
             'snapshots': fetch_snapshots(conn),
+            'marketData': fetch_market_data(conn),
         }
         
         # Ensure output directory exists
@@ -345,6 +403,7 @@ def export_data(db_path: str, output_path: str) -> None:
         print(f"  - Runs: {data['metadata']['totalRuns']}")
         print(f"  - Trades: {data['metadata']['totalTrades']}")
         print(f"  - Equity curve points: {sum(len(v) for v in data['equityCurves'].values())}")
+        print(f"  - Market data tickers: {len(data['marketData'])}")
         
     finally:
         conn.close()
