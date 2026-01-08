@@ -1,249 +1,34 @@
 {
   "metadata": {
-    "lastUpdated": "2026-01-08T11:10:15.297718Z",
+    "lastUpdated": "2026-01-08T14:40:18.031444Z",
     "totalCompetitors": 2,
-    "totalRuns": 2,
-    "totalTrades": 2
+    "totalRuns": 0,
+    "totalTrades": 0
   },
   "leaderboard": [
     {
-      "competitor_id": "gemini_flash",
-      "name": "Gemini Flash",
-      "provider": "gemini",
-      "model": "gemini-3-flash-preview",
+      "competitor_id": "openrouter_xiaomi_mimo_v2_flash",
+      "name": "OpenRouter Xiaomi Mimo v2 Flash",
+      "provider": "openrouter",
+      "model": "xiaomi/mimo-v2-flash:free",
       "current_equity": 100000.0,
       "total_return": 0.0,
       "max_drawdown": 0.0,
       "num_trades": 0
     },
     {
-      "competitor_id": "openrouter_mistral",
-      "name": "OpenRouter Mistral",
-      "provider": "openrouter",
-      "model": "xiaomi/mimo-v2-flash:free",
-      "current_equity": 99966.88,
-      "total_return": -0.000164,
-      "max_drawdown": 0.0002,
-      "num_trades": 2
+      "competitor_id": "gemini_2_5_flash",
+      "name": "Gemini 2.5 Flash",
+      "provider": "gemini",
+      "model": "gemini-2.5-flash",
+      "current_equity": 100000.0,
+      "total_return": 0.0,
+      "max_drawdown": 0.0,
+      "num_trades": 0
     }
   ],
-  "equityCurves": {
-    "gemini_flash": [
-      {
-        "timestamp": "2026-01-08T07:06:54.080892",
-        "equity": 100000.0,
-        "cash": 100000.0
-      }
-    ],
-    "openrouter_mistral": [
-      {
-        "timestamp": "2026-01-08T07:06:53.069416",
-        "equity": 99983.33,
-        "cash": 91652.77
-      },
-      {
-        "timestamp": "2026-01-08T07:09:08.448575",
-        "equity": 99966.88,
-        "cash": 83417.33
-      }
-    ]
-  },
-  "runLogs": [
-    {
-      "run_id": "f51f05f1",
-      "competitor_id": "openrouter_mistral",
-      "session_date": "2026-01-08",
-      "session_type": "OPEN",
-      "timestamp": "2026-01-08T07:09:08.453008",
-      "llm_calls": [
-        {
-          "call_type": "strategist",
-          "provider": "openrouter",
-          "model": "xiaomi/mimo-v2-flash:free",
-          "prompt_tokens": 3733,
-          "completion_tokens": 301,
-          "latency_ms": 4296,
-          "success": true,
-          "error": null,
-          "prompt": "Analyze the following comprehensive market briefings for trading session OPEN on 2026-01-08.\n\nReview each ticker's data carefully, including:\n- Price history and technical indicators\n- Fundamental metrics and valuation\n- Insider transaction patterns\n- Recent news and sentiment\n\n================================================================================\nMARKET BRIEFING: AAPL\nSession Date: 2026-01-08\n================================================================================\n\n────────────────────────────────────────\nPRICE DATA (Source: Exchange via yfinance)\n────────────────────────────────────────\nOpen: $263.20 | High: $263.68 | Low: $259.81 | Close: $260.33\nVolume: 48,262,000\n\n────────────────────────────────────────\nRETURNS (Computed from price data)\n────────────────────────────────────────\n1-Day: -0.77% | 5-Day: -4.67% | 20-Day: -6.32%\nVolatility (20-day annualized): 11.4%\n\n────────────────────────────────────────\nTECHNICAL INDICATORS (Computed using standard formulas)\n────────────────────────────────────────\nRSI (14-period): 27.6\nMACD: Line=-2.209, Signal=-0.556, Histogram=-1.653\nMoving Averages: MA(20): $272.44 (-4.4%) | MA(50): $272.96 (-4.6%)\n\n────────────────────────────────────────\nFUNDAMENTALS (Source: SEC Filings via yfinance)\n────────────────────────────────────────\n\n────────────────────────────────────────\nNEWS WITH SENTIMENT (Source: Alpha Vantage NLP)\n────────────────────────────────────────\nOverall Sentiment: Neutral (score: +0.13)\nArticle Breakdown: 10 bullish, 4 bearish, 6 neutral\n\n[1] AD HOC NEWS [Somewhat-Bullish: +0.32]\n    \"The Truth About Alphabet Inc. (Class A): Is This Stock Still a No-Brainer or Totally Overhyped?\"\n    This article examines whether Alphabet Inc. (Class A) is still a worthwhile investment, considering the hype around big tech and AI. It analyzes the company's strong product grip in search, YouTube, a...\n\n[2] Stocktwits [Somewhat-Bearish: -0.34]\n    \"New Year Blues For Apple: GOOGL Market Cap Surges Past iPhone Maker's After 7 Long Years, Powered By AI Push\"\n    Alphabet Inc. has surpassed Apple Inc. in market capitalization for the first time in seven years, reaching $3.89 trillion, driven by strong AI development and the Gemini 3 AI model. This shift highli...\n\n[3] www.marketscreener.com [Somewhat-Bullish: +0.18]\n    \"Goldman Sachs : Announces Agreement to Transition Apple Card Program to Chase\"\n    Goldman Sachs announced an agreement to transition its Apple Card program and associated accounts to Chase, completing the narrowing of its consumer business focus. The transaction is expected to incr...\n\n[4] Stocktwits [Somewhat-Bullish: +0.32]\n    \"Apple Credit Card To Be Taken Over By JPMorgan Chase: Report\"\n    JPMorgan Chase is reportedly set to take over as the issuer of Apple Inc.'s credit card program from Goldman Sachs Group Inc., a deal that has been under negotiation for over a year. Goldman Sachs wil...\n\n[5] Seeking Alpha [Neutral: +0.01]\n    \"Apple 2026: Major Change Expected (NASDAQ:AAPL)\"\n    Apple is expected to undergo significant changes in 2026, including the potential launch of its first foldable iPhone and a shift to a staggered product release schedule for iPhones. While this new re...\n\n[6] AppleInsider [Somewhat-Bearish: -0.25]\n    \"Apple loses Safari designer Marco Triverio to The Browser Company\"\n    Apple's lead Safari designer, Marco Triverio, has moved to The Browser Company, creators of the AI-centric browser Dia. This follows a trend of tech industry talent shifts driven by increased competit...\n\n[7] MSN [Bearish: -0.37]\n    \"S&P 500 hits new record highs, Alphabet dethrones Apple: What's moving markets Wednesday?\"\n    The S&P 500 reached new record highs, driven by strong tech performance, particularly Alphabet which briefly surpassed Apple in market capitalization. This market movement occurred as traders reacted ...\n\n[8] TechStock² [Neutral: -0.11]\n    \"Skyworks Solutions stock tumbles nearly 12% in regular session as SWKS slides on CES week\"\n    Skyworks Solutions (SWKS) shares fell nearly 12% during a regular session amid CES 2026, with no immediate catalyst apparent. The selloff comes as the chipmaker aims to diversify beyond smartphones an...\n\n[9] Investing.com [Bullish: +0.36]\n    \"Alphabet Trades Near Highs as Earnings Power and AI Spend Justify a Premium\"\n    Alphabet Inc. (NASDAQ:GOOGL) is trading near its 52-week highs, driven by strong earnings growth and significant strategic investments in AI infrastructure, including custom Tensor Processing Units (T...\n\n[10] TradingView — Track All Markets [Bullish: +0.46]\n    \"Apple Reaffirmed as Evercore's Top Pick on iPhone Strength\"\n    Evercore ISI has reaffirmed Apple Inc. (AAPL) as its top technology hardware pick, citing continued iPhone momentum and the anticipated impact of AI-driven Siri updates. The firm expects Apple to exce...\n\n\n================================================================================\n\n================================================================================\nMARKET BRIEFING: MSFT\nSession Date: 2026-01-08\n================================================================================\n\n────────────────────────────────────────\nPRICE DATA (Source: Exchange via yfinance)\n────────────────────────────────────────\nOpen: $479.76 | High: $489.70 | Low: $477.95 | Close: $483.47\nVolume: 25,547,100\n\n────────────────────────────────────────\nRETURNS (Computed from price data)\n────────────────────────────────────────\n1-Day: +1.04% | 5-Day: -0.82% | 20-Day: -1.54%\nVolatility (20-day annualized): 16.9%\n\n────────────────────────────────────────\nTECHNICAL INDICATORS (Computed using standard formulas)\n────────────────────────────────────────\nRSI (14-period): 48.9\nMACD: Line=-2.835, Signal=-3.064, Histogram=+0.229\nMoving Averages: MA(20): $482.16 (+0.3%) | MA(50): $492.67 (-1.9%)\n\n────────────────────────────────────────\nFUNDAMENTALS (Source: SEC Filings via yfinance)\n────────────────────────────────────────\n\n────────────────────────────────────────\nNEWS WITH SENTIMENT (Source: Alpha Vantage NLP)\n────────────────────────────────────────\nOverall Sentiment: Bullish (score: +0.26)\nArticle Breakdown: 13 bullish, 0 bearish, 7 neutral\n\n[1] AD HOC NEWS [Neutral: -0.08]\n    \"The Truth About Cisco Systems Inc: Why Everyone Is Suddenly Paying Attention\"\n    This article analyzes Cisco Systems Inc. (CSCO), questioning if the networking giant is a \"quiet must-have\" or a \"boomer tech trap.\" It explores Cisco's market position, product power in infrastructur...\n\n[2] NDTV Profit [Somewhat-Bullish: +0.30]\n    \"Stocks To Watch Today: Tata Steel, LG Electronics, Infosys, HUDCO, Angel One\"\n    This article highlights key stocks to watch today, January 8, including Tata Steel, LG Electronics, Infosys, HUDCO, and Angel One. Tata Steel reported significant quarterly growth in crude steel produ...\n\n[3] AD HOC NEWS [Bullish: +0.42]\n    \"The Truth About Alphabet Inc. (Class A): Is This Stock Still a No-Brainer or Totally Overhyped?\"\n    This article examines whether Alphabet Inc. (Class A) is still a worthwhile investment, considering the hype around big tech and AI. It analyzes the company's strong product grip in search, YouTube, a...\n\n[4] Barron's [Neutral: +0.14]\n    \"Constellation Closes Deal for Calpine, Creating Biggest Electricity Generator\"\n    Constellation Energy has finalized its acquisition of Calpine, making it the largest owner of power plants in the U.S. This strategic move is a response to the anticipated increase in American electri...\n\n[5] Simply Wall Street [Somewhat-Bullish: +0.29]\n    \"Does Dual AI-Focused Buy Initiations Transform the Bull Case For Digital Realty Trust (DLR)?\"\n    Deutsche Bank and Goldman Sachs have initiated \"Buy\" ratings for Digital Realty Trust (DLR), citing strong AI-related demand, lease renewal opportunities, and a significant development pipeline. The a...\n\n[6] SiliconANGLE [Bullish: +0.49]\n    \"Enterprise infrastructure shift: Dell and Microsoft drive AI\"\n    Dell Technologies Inc. and Microsoft Corp. are collaborating to reshape enterprise infrastructure, making AI a central component. Their initiatives, including Dell's AI Factory and Microsoft's Azure i...\n\n[7] The Globe and Mail [Neutral: +0.11]\n    \"The Smartest Dividend ETF to Buy With $2,000 Right Now\"\n    This article recommends the JPMorgan Nasdaq Equity Premium Income ETF (JEPQ) as a smart dividend investment. The JEPQ ETF utilizes a covered call strategy on top Nasdaq-100 technology stocks, offering...\n\n[8] XTB.com [Neutral: +0.13]\n    \"Daily summary: Alphabet shares support sentiments on Wall Street 🗽Oil, precious metals and crypto slide\"\n    Alphabet shares (GOOGL.US) supported Wall Street sentiment, rising 3% due to advancements in autonomous vehicles and AI, despite China's advice against Nvidia chip purchases. Meanwhile, oil prices fel...\n\n[9] Investing.com [Neutral: -0.14]\n    \"Alphabet Trades Near Highs as Earnings Power and AI Spend Justify a Premium\"\n    Alphabet Inc. (NASDAQ:GOOGL) is trading near its 52-week highs, driven by strong earnings growth and significant strategic investments in AI infrastructure, including custom Tensor Processing Units (T...\n\n[10] Chain Store Age [Somewhat-Bullish: +0.25]\n    \"Jack in the Box completes 'store of the future' tech transformation\"\n    Jack in the Box Inc. has finalized the deployment of the Qu unified commerce platform across all its 2,100+ restaurants, replacing a legacy system. This transformation integrates all order channels on...\n\n\n================================================================================\n\nFor EACH ticker, provide:\n1. Your proposed action (BUY, SELL, or HOLD)\n2. Your confidence level (0.0 to 1.0)\n3. A brief rationale explaining your decision\n\nRemember: Output ONLY the RAW JSON object. Do not use markdown formatting.",
-          "raw_response": "{\n  \"session_date\": \"2026-01-08\",\n  \"session_type\": \"OPEN\",\n  \"market_summary\": \"Market shows mixed signals with MSFT demonstrating resilience and positive sentiment, while AAPL shows technical weakness despite some positive news flow. Tech sector remains active with AI-driven narratives influencing movements.\",\n  \"proposals\": [\n    {\n      \"ticker\": \"AAPL\",\n      \"action\": \"HOLD\",\n      \"confidence\": 0.45,\n      \"rationale\": \"Technical indicators show oversold conditions (RSI 27.6) which could signal a bounce, but negative momentum (MACD histogram -1.653) and price trading below key moving averages suggest continued weakness. Mixed news sentiment with bearish pressure from Alphabet surpassing Apple's market cap, though offset by Evercore's top pick reaffirmation.\",\n      \"target_allocation_pct\": null\n    },\n    {\n      \"ticker\": \"MSFT\",\n      \"action\": \"BUY\",\n      \"confidence\": 0.72,\n      \"rationale\": \"Positive technical momentum with MACD histogram turning positive (+0.229) and price above MA(20), combined with strongly bullish news sentiment (13 bullish articles, 0 bearish). Microsoft's collaboration with Dell on AI infrastructure positions it well for enterprise AI adoption trends.\",\n      \"target_allocation_pct\": 8.5\n    }\n  ]\n}",
-          "parsed_response": null
-        },
-        {
-          "call_type": "risk_guard",
-          "provider": "openrouter",
-          "model": "xiaomi/mimo-v2-flash:free",
-          "prompt_tokens": 1404,
-          "completion_tokens": 611,
-          "latency_ms": 6871,
-          "success": true,
-          "error": null,
-          "prompt": "Review the following Strategist proposals and decide what trades to execute.\n\n=== STRATEGIST PROPOSALS ===\n{\n  \"session_date\": \"2026-01-08\",\n  \"session_type\": \"OPEN\",\n  \"market_summary\": \"Market shows mixed signals with MSFT demonstrating resilience and positive sentiment, while AAPL shows technical weakness despite some positive news flow. Tech sector remains active with AI-driven narratives influencing movements.\",\n  \"proposals\": [\n    {\n      \"ticker\": \"AAPL\",\n      \"action\": \"HOLD\",\n      \"confidence\": 0.45,\n      \"rationale\": \"Technical indicators show oversold conditions (RSI 27.6) which could signal a bounce, but negative momentum (MACD histogram -1.653) and price trading below key moving averages suggest continued weakness. Mixed news sentiment with bearish pressure from Alphabet surpassing Apple's market cap, though offset by Evercore's top pick reaffirmation.\",\n      \"target_allocation_pct\": null\n    },\n    {\n      \"ticker\": \"MSFT\",\n      \"action\": \"BUY\",\n      \"confidence\": 0.72,\n      \"rationale\": \"Positive technical momentum with MACD histogram turning positive (+0.229) and price above MA(20), combined with strongly bullish news sentiment (13 bullish articles, 0 bearish). Microsoft's collaboration with Dell on AI infrastructure positions it well for enterprise AI adoption trends.\",\n      \"target_allocation_pct\": 8.5\n    }\n  ]\n}\n\n=== CURRENT POSITIONS ===\n- AAPL: 32 shares @ $260.59 avg cost, current $260.33, P&L $-8.33\n\nFor each proposal, decide:\n1. APPROVE → Convert to an Order with specific quantity\n2. VETO → Do not include in orders (explain in reasoning)\n\nOutput your TradePlan as JSON with:\n- reasoning: Explain your decisions (which proposals approved/vetoed and why)\n- risk_assessment: Key risks in executing these trades\n- orders: List of approved Order objects (or empty list for HOLD)\n\nRemember: Output ONLY the RAW JSON object. Do not use markdown formatting.",
-          "raw_response": "{\n  \"reasoning\": \"I have reviewed the Strategist's proposals for the current session.\\n\\n1. **AAPL Proposal (HOLD, confidence 0.45)**: The Strategist proposes holding AAPL. However, the confidence level is 0.45, which is below the mandatory veto threshold of 0.5. Additionally, the current position in AAPL (32 shares valued at $260.33) represents approximately 8.33% of the total equity ($99,983.33), which is well within the 25% maximum position limit. There is no need to sell to rebalance, and the low confidence triggers a veto on any proposed action. Therefore, no order is generated for AAPL.\\n\\n2. **MSFT Proposal (BUY, confidence 0.72, target 8.5%)**: The Strategist proposes buying MSFT with high confidence (0.72 > 0.5). This proposal is approved. I will calculate the order size based on the target allocation of 8.5% of the total equity.\\n   - Target Value: $99,983.33 * 8.5% = $8,498.58\\n   - Current MSFT Position: $0 (No current position reported)\\n   - Required Investment: $8,498.58\\n   - Available Cash: $91,652.77 (Sufficient)\\n   - Current Price: $483.47\\n   - Quantity: $8,498.58 / $483.47 = 17.57 shares. Rounded down to 17 shares.\\n   - Final Position Value: 17 * $483.47 = $8,218.99 (approx 8.22% of equity, within limits).\\n\\nI will execute a BUY order for 17 shares of MSFT.\",\n  \"risk_assessment\": \"1. **Market Risk**: The market shows mixed signals. While MSFT shows positive momentum, general tech sector volatility could impact the new position.\\n2. **Concentration Risk**: The proposed trade increases exposure to MSFT to ~8.2% of the portfolio. This is below the 25% limit, so concentration risk is low.\\n3. **Execution Risk**: Market orders will be executed at the prevailing price, which may differ slightly from the estimated prices used for sizing.\\n4. **Liquidity Risk**: Sufficient cash is available ($91k+), so liquidity risk for this purchase is negligible.\",\n  \"orders\": [\n    {\n      \"ticker\": \"MSFT\",\n      \"side\": \"BUY\",\n      \"qty\": 17,\n      \"order_type\": \"MARKET\"\n    }\n  ]\n}",
-          "parsed_response": null
-        }
-      ],
-      "strategist_proposal": null,
-      "trade_plan": {
-        "reasoning": "I have reviewed the Strategist's proposals for the current session.\n\n1. **AAPL Proposal (HOLD, confidence 0.45)**: The Strategist proposes holding AAPL. However, the confidence level is 0.45, which is below the mandatory veto threshold of 0.5. Additionally, the current position in AAPL (32 shares valued at $260.33) represents approximately 8.33% of the total equity ($99,983.33), which is well within the 25% maximum position limit. There is no need to sell to rebalance, and the low confidence triggers a veto on any proposed action. Therefore, no order is generated for AAPL.\n\n2. **MSFT Proposal (BUY, confidence 0.72, target 8.5%)**: The Strategist proposes buying MSFT with high confidence (0.72 > 0.5). This proposal is approved. I will calculate the order size based on the target allocation of 8.5% of the total equity.\n   - Target Value: $99,983.33 * 8.5% = $8,498.58\n   - Current MSFT Position: $0 (No current position reported)\n   - Required Investment: $8,498.58\n   - Available Cash: $91,652.77 (Sufficient)\n   - Current Price: $483.47\n   - Quantity: $8,498.58 / $483.47 = 17.57 shares. Rounded down to 17 shares.\n   - Final Position Value: 17 * $483.47 = $8,218.99 (approx 8.22% of equity, within limits).\n\nI will execute a BUY order for 17 shares of MSFT.",
-        "risk_assessment": "1. **Market Risk**: The market shows mixed signals. While MSFT shows positive momentum, general tech sector volatility could impact the new position.\n2. **Concentration Risk**: The proposed trade increases exposure to MSFT to ~8.2% of the portfolio. This is below the 25% limit, so concentration risk is low.\n3. **Execution Risk**: Market orders will be executed at the prevailing price, which may differ slightly from the estimated prices used for sizing.\n4. **Liquidity Risk**: Sufficient cash is available ($91k+), so liquidity risk for this purchase is negligible.",
-        "orders": [
-          {
-            "ticker": "MSFT",
-            "side": "BUY",
-            "qty": 17,
-            "order_type": "MARKET"
-          }
-        ]
-      },
-      "fills": [
-        {
-          "ticker": "MSFT",
-          "side": "BUY",
-          "qty": 17,
-          "order_type": "MARKET",
-          "fill_price": 483.95347122192385,
-          "fees": 8.227209010772706,
-          "slippage": 8.218990020751953,
-          "timestamp": "2026-01-08T07:09:08.444915",
-          "notional": 8227.209010772705
-        }
-      ],
-      "errors": [],
-      "snapshot_before": {
-        "timestamp": "2026-01-08T07:08:57.266130",
-        "cash": 91652.77097998731,
-        "positions": [
-          {
-            "ticker": "AAPL",
-            "qty": 32,
-            "avg_cost": 260.5903165588379,
-            "current_price": 260.3299865722656
-          }
-        ],
-        "realized_pnl": 0.0
-      },
-      "snapshot_after": {
-        "timestamp": "2026-01-08T07:09:08.448575",
-        "cash": 83417.33476020384,
-        "positions": [
-          {
-            "ticker": "AAPL",
-            "qty": 32,
-            "avg_cost": 260.5903165588379,
-            "current_price": 260.3299865722656
-          },
-          {
-            "ticker": "MSFT",
-            "qty": 17,
-            "avg_cost": 483.95347122192385,
-            "current_price": 483.4700012207031
-          }
-        ],
-        "realized_pnl": 0.0
-      }
-    },
-    {
-      "run_id": "604db0b0",
-      "competitor_id": "gemini_flash",
-      "session_date": "2026-01-08",
-      "session_type": "OPEN",
-      "timestamp": "2026-01-08T07:06:54.088329",
-      "llm_calls": [
-        {
-          "call_type": "strategist",
-          "provider": "gemini",
-          "model": "gemini-3-flash-preview",
-          "prompt_tokens": 0,
-          "completion_tokens": 0,
-          "latency_ms": 254,
-          "success": false,
-          "error": "Rate limit or quota exceeded: 429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. ",
-          "prompt": "Analyze the following comprehensive market briefings for trading session OPEN on 2026-01-08.\n\nReview each ticker's data carefully, including:\n- Price history and technical indicators\n- Fundamental metrics and valuation\n- Insider transaction patterns\n- Recent news and sentiment\n\n================================================================================\nMARKET BRIEFING: AAPL\nSession Date: 2026-01-08\n================================================================================\n\n────────────────────────────────────────\nPRICE DATA (Source: Exchange via yfinance)\n────────────────────────────────────────\nOpen: $263.20 | High: $263.68 | Low: $259.81 | Close: $260.33\nVolume: 48,262,000\n\n────────────────────────────────────────\nRETURNS (Computed from price data)\n────────────────────────────────────────\n1-Day: -0.77% | 5-Day: -4.67% | 20-Day: -6.32%\nVolatility (20-day annualized): 11.4%\n\n────────────────────────────────────────\nTECHNICAL INDICATORS (Computed using standard formulas)\n────────────────────────────────────────\nRSI (14-period): 27.6\nMACD: Line=-2.209, Signal=-0.556, Histogram=-1.653\nMoving Averages: MA(20): $272.44 (-4.4%) | MA(50): $272.96 (-4.6%)\n\n────────────────────────────────────────\nFUNDAMENTALS (Source: SEC Filings via yfinance)\n────────────────────────────────────────\n\n────────────────────────────────────────\nNEWS WITH SENTIMENT (Source: Alpha Vantage NLP)\n────────────────────────────────────────\nOverall Sentiment: Neutral (score: +0.13)\nArticle Breakdown: 10 bullish, 4 bearish, 6 neutral\n\n[1] AD HOC NEWS [Somewhat-Bullish: +0.32]\n    \"The Truth About Alphabet Inc. (Class A): Is This Stock Still a No-Brainer or Totally Overhyped?\"\n    This article examines whether Alphabet Inc. (Class A) is still a worthwhile investment, considering the hype around big tech and AI. It analyzes the company's strong product grip in search, YouTube, a...\n\n[2] Stocktwits [Somewhat-Bearish: -0.34]\n    \"New Year Blues For Apple: GOOGL Market Cap Surges Past iPhone Maker's After 7 Long Years, Powered By AI Push\"\n    Alphabet Inc. has surpassed Apple Inc. in market capitalization for the first time in seven years, reaching $3.89 trillion, driven by strong AI development and the Gemini 3 AI model. This shift highli...\n\n[3] www.marketscreener.com [Somewhat-Bullish: +0.18]\n    \"Goldman Sachs : Announces Agreement to Transition Apple Card Program to Chase\"\n    Goldman Sachs announced an agreement to transition its Apple Card program and associated accounts to Chase, completing the narrowing of its consumer business focus. The transaction is expected to incr...\n\n[4] Stocktwits [Somewhat-Bullish: +0.32]\n    \"Apple Credit Card To Be Taken Over By JPMorgan Chase: Report\"\n    JPMorgan Chase is reportedly set to take over as the issuer of Apple Inc.'s credit card program from Goldman Sachs Group Inc., a deal that has been under negotiation for over a year. Goldman Sachs wil...\n\n[5] Seeking Alpha [Neutral: +0.01]\n    \"Apple 2026: Major Change Expected (NASDAQ:AAPL)\"\n    Apple is expected to undergo significant changes in 2026, including the potential launch of its first foldable iPhone and a shift to a staggered product release schedule for iPhones. While this new re...\n\n[6] AppleInsider [Somewhat-Bearish: -0.25]\n    \"Apple loses Safari designer Marco Triverio to The Browser Company\"\n    Apple's lead Safari designer, Marco Triverio, has moved to The Browser Company, creators of the AI-centric browser Dia. This follows a trend of tech industry talent shifts driven by increased competit...\n\n[7] MSN [Bearish: -0.37]\n    \"S&P 500 hits new record highs, Alphabet dethrones Apple: What's moving markets Wednesday?\"\n    The S&P 500 reached new record highs, driven by strong tech performance, particularly Alphabet which briefly surpassed Apple in market capitalization. This market movement occurred as traders reacted ...\n\n[8] TechStock² [Neutral: -0.11]\n    \"Skyworks Solutions stock tumbles nearly 12% in regular session as SWKS slides on CES week\"\n    Skyworks Solutions (SWKS) shares fell nearly 12% during a regular session amid CES 2026, with no immediate catalyst apparent. The selloff comes as the chipmaker aims to diversify beyond smartphones an...\n\n[9] Investing.com [Bullish: +0.36]\n    \"Alphabet Trades Near Highs as Earnings Power and AI Spend Justify a Premium\"\n    Alphabet Inc. (NASDAQ:GOOGL) is trading near its 52-week highs, driven by strong earnings growth and significant strategic investments in AI infrastructure, including custom Tensor Processing Units (T...\n\n[10] TradingView — Track All Markets [Bullish: +0.46]\n    \"Apple Reaffirmed as Evercore's Top Pick on iPhone Strength\"\n    Evercore ISI has reaffirmed Apple Inc. (AAPL) as its top technology hardware pick, citing continued iPhone momentum and the anticipated impact of AI-driven Siri updates. The firm expects Apple to exce...\n\n\n================================================================================\n\n================================================================================\nMARKET BRIEFING: MSFT\nSession Date: 2026-01-08\n================================================================================\n\n────────────────────────────────────────\nPRICE DATA (Source: Exchange via yfinance)\n────────────────────────────────────────\nOpen: $479.76 | High: $489.70 | Low: $477.95 | Close: $483.47\nVolume: 25,547,100\n\n────────────────────────────────────────\nRETURNS (Computed from price data)\n────────────────────────────────────────\n1-Day: +1.04% | 5-Day: -0.82% | 20-Day: -1.54%\nVolatility (20-day annualized): 16.9%\n\n────────────────────────────────────────\nTECHNICAL INDICATORS (Computed using standard formulas)\n────────────────────────────────────────\nRSI (14-period): 48.9\nMACD: Line=-2.835, Signal=-3.064, Histogram=+0.229\nMoving Averages: MA(20): $482.16 (+0.3%) | MA(50): $492.67 (-1.9%)\n\n────────────────────────────────────────\nFUNDAMENTALS (Source: SEC Filings via yfinance)\n────────────────────────────────────────\n\n────────────────────────────────────────\nNEWS WITH SENTIMENT (Source: Alpha Vantage NLP)\n────────────────────────────────────────\nOverall Sentiment: Bullish (score: +0.26)\nArticle Breakdown: 13 bullish, 0 bearish, 7 neutral\n\n[1] AD HOC NEWS [Neutral: -0.08]\n    \"The Truth About Cisco Systems Inc: Why Everyone Is Suddenly Paying Attention\"\n    This article analyzes Cisco Systems Inc. (CSCO), questioning if the networking giant is a \"quiet must-have\" or a \"boomer tech trap.\" It explores Cisco's market position, product power in infrastructur...\n\n[2] NDTV Profit [Somewhat-Bullish: +0.30]\n    \"Stocks To Watch Today: Tata Steel, LG Electronics, Infosys, HUDCO, Angel One\"\n    This article highlights key stocks to watch today, January 8, including Tata Steel, LG Electronics, Infosys, HUDCO, and Angel One. Tata Steel reported significant quarterly growth in crude steel produ...\n\n[3] AD HOC NEWS [Bullish: +0.42]\n    \"The Truth About Alphabet Inc. (Class A): Is This Stock Still a No-Brainer or Totally Overhyped?\"\n    This article examines whether Alphabet Inc. (Class A) is still a worthwhile investment, considering the hype around big tech and AI. It analyzes the company's strong product grip in search, YouTube, a...\n\n[4] Barron's [Neutral: +0.14]\n    \"Constellation Closes Deal for Calpine, Creating Biggest Electricity Generator\"\n    Constellation Energy has finalized its acquisition of Calpine, making it the largest owner of power plants in the U.S. This strategic move is a response to the anticipated increase in American electri...\n\n[5] Simply Wall Street [Somewhat-Bullish: +0.29]\n    \"Does Dual AI-Focused Buy Initiations Transform the Bull Case For Digital Realty Trust (DLR)?\"\n    Deutsche Bank and Goldman Sachs have initiated \"Buy\" ratings for Digital Realty Trust (DLR), citing strong AI-related demand, lease renewal opportunities, and a significant development pipeline. The a...\n\n[6] SiliconANGLE [Bullish: +0.49]\n    \"Enterprise infrastructure shift: Dell and Microsoft drive AI\"\n    Dell Technologies Inc. and Microsoft Corp. are collaborating to reshape enterprise infrastructure, making AI a central component. Their initiatives, including Dell's AI Factory and Microsoft's Azure i...\n\n[7] The Globe and Mail [Neutral: +0.11]\n    \"The Smartest Dividend ETF to Buy With $2,000 Right Now\"\n    This article recommends the JPMorgan Nasdaq Equity Premium Income ETF (JEPQ) as a smart dividend investment. The JEPQ ETF utilizes a covered call strategy on top Nasdaq-100 technology stocks, offering...\n\n[8] XTB.com [Neutral: +0.13]\n    \"Daily summary: Alphabet shares support sentiments on Wall Street 🗽Oil, precious metals and crypto slide\"\n    Alphabet shares (GOOGL.US) supported Wall Street sentiment, rising 3% due to advancements in autonomous vehicles and AI, despite China's advice against Nvidia chip purchases. Meanwhile, oil prices fel...\n\n[9] Investing.com [Neutral: -0.14]\n    \"Alphabet Trades Near Highs as Earnings Power and AI Spend Justify a Premium\"\n    Alphabet Inc. (NASDAQ:GOOGL) is trading near its 52-week highs, driven by strong earnings growth and significant strategic investments in AI infrastructure, including custom Tensor Processing Units (T...\n\n[10] Chain Store Age [Somewhat-Bullish: +0.25]\n    \"Jack in the Box completes 'store of the future' tech transformation\"\n    Jack in the Box Inc. has finalized the deployment of the Qu unified commerce platform across all its 2,100+ restaurants, replacing a legacy system. This transformation integrates all order channels on...\n\n\n================================================================================\n\nFor EACH ticker, provide:\n1. Your proposed action (BUY, SELL, or HOLD)\n2. Your confidence level (0.0 to 1.0)\n3. A brief rationale explaining your decision\n\nRemember: Output ONLY the RAW JSON object. Do not use markdown formatting.",
-          "raw_response": "",
-          "parsed_response": null
-        }
-      ],
-      "strategist_proposal": null,
-      "trade_plan": null,
-      "fills": [],
-      "errors": [
-        "Strategist call failed: Rate limit or quota exceeded: 429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. ",
-        "Skipping RiskGuard: No strategist proposal available"
-      ],
-      "snapshot_before": {
-        "timestamp": "2026-01-08T07:06:53.076290",
-        "cash": 100000.0,
-        "positions": [],
-        "realized_pnl": 0.0
-      },
-      "snapshot_after": {
-        "timestamp": "2026-01-08T07:06:54.080892",
-        "cash": 100000.0,
-        "positions": [],
-        "realized_pnl": 0.0
-      }
-    }
-  ],
-  "trades": [
-    {
-      "timestamp": "2026-01-08T07:09:08.444915",
-      "competitor_id": "openrouter_mistral",
-      "ticker": "MSFT",
-      "side": "BUY",
-      "qty": 17,
-      "price": 483.95,
-      "notional": 8227.21,
-      "fees": 8.2272
-    },
-    {
-      "timestamp": "2026-01-08T07:06:53.055705",
-      "competitor_id": "openrouter_mistral",
-      "ticker": "AAPL",
-      "side": "BUY",
-      "qty": 32,
-      "price": 260.59,
-      "notional": 8338.89,
-      "fees": 8.3389
-    }
-  ],
-  "snapshots": {
-    "gemini_flash": {
-      "timestamp": "2026-01-08T07:06:54.080892",
-      "cash": 100000.0,
-      "positions": [],
-      "realized_pnl": 0,
-      "positions_value": 0.0,
-      "equity": 100000.0,
-      "unrealized_pnl": 0.0
-    },
-    "openrouter_mistral": {
-      "timestamp": "2026-01-08T07:09:08.448575",
-      "cash": 83417.33,
-      "positions": [
-        {
-          "ticker": "AAPL",
-          "qty": 32,
-          "avg_cost": 260.5903165588379,
-          "current_price": 260.3299865722656,
-          "market_value": 8330.56,
-          "unrealized_pnl": -8.33,
-          "unrealized_pnl_pct": -0.1
-        },
-        {
-          "ticker": "MSFT",
-          "qty": 17,
-          "avg_cost": 483.95347122192385,
-          "current_price": 483.4700012207031,
-          "market_value": 8218.99,
-          "unrealized_pnl": -8.22,
-          "unrealized_pnl_pct": -0.1
-        }
-      ],
-      "realized_pnl": 0,
-      "positions_value": 16549.55,
-      "equity": 99966.88,
-      "unrealized_pnl": -16.55
-    }
-  }
+  "equityCurves": {},
+  "runLogs": [],
+  "trades": [],
+  "snapshots": {}
 }
