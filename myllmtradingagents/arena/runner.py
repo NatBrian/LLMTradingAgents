@@ -403,25 +403,16 @@ class ArenaRunner:
         logger.info(f"Call #1: Strategist", extra={"ticker_count": len(briefings)})
         
         # Pass briefings (preferred) and ticker_features (fallback)
-        strategist_result = strategist.invoke({
-            "briefings": briefings,
-            "session_date": session_date_str,
-            "session_type": session_type,
-        })
-        
-        llm_calls.append(LLMCall(
-            call_type="strategist",
-            provider=competitor.provider,
-            model=competitor.model,
-            prompt_tokens=strategist_result.prompt_tokens,
-            completion_tokens=strategist_result.completion_tokens,
-            latency_ms=strategist_result.latency_ms,
-            success=strategist_result.success,
-            error=strategist_result.error,
-            raw_response=strategist_result.raw_response,
-            prompt=strategist_result.prompt,
-            system_prompt=strategist_result.system_prompt,
-        ))
+        strategist_result = self._invoke_with_retry(
+            agent=strategist,
+            context={
+                "briefings": briefings,
+                "session_date": session_date_str,
+                "session_type": session_type,
+            },
+            llm_calls=llm_calls,
+            competitor=competitor,
+        )
         
         # Handle strategist result
         strategist_proposal: Optional[StrategistProposal] = None
@@ -431,18 +422,17 @@ class ArenaRunner:
         else:
             errors.append(f"Strategist call failed: {strategist_result.error}")
             
-            # Attempt repair if we got a response
-            if strategist_result.raw_response:
-                logger.info("Attempting repair for Strategist")
-                strategist_proposal = self._repair_json_parse(
-                    strategist_result.raw_response,
-                    strategist_result.error or "Unknown error",
-                    StrategistProposal,
-                    get_strategist_proposal_schema(),
-                    llm_client,
-                    llm_calls,
-                    competitor,
-                )
+            # Attempt repair
+            logger.info("Attempting repair for Strategist")
+            strategist_proposal = self._repair_json_parse(
+                strategist_result.raw_response,
+                strategist_result.error or "Unknown error",
+                StrategistProposal,
+                get_strategist_proposal_schema(),
+                llm_client,
+                llm_calls,
+                competitor,
+            )
         
         # ====================================================================
         # Call #2: RiskGuard
@@ -458,27 +448,18 @@ class ArenaRunner:
             else:
                 logger.info("Call #2: RiskGuard")
                 
-                risk_guard_result = risk_guard.invoke({
-                "proposal": strategist_proposal,
-                "snapshot": snapshot_before,
-                "prices": prices,
-                "max_orders": competitor.max_orders_per_run,
-                "max_position_pct": competitor.max_position_pct * 100,
-            })
-            
-            llm_calls.append(LLMCall(
-                call_type="risk_guard",
-                provider=competitor.provider,
-                model=competitor.model,
-                prompt_tokens=risk_guard_result.prompt_tokens,
-                completion_tokens=risk_guard_result.completion_tokens,
-                latency_ms=risk_guard_result.latency_ms,
-                success=risk_guard_result.success,
-                error=risk_guard_result.error,
-                raw_response=risk_guard_result.raw_response,
-                prompt=risk_guard_result.prompt,
-                system_prompt=risk_guard_result.system_prompt,
-            ))
+                risk_guard_result = self._invoke_with_retry(
+                    agent=risk_guard,
+                    context={
+                        "proposal": strategist_proposal,
+                        "snapshot": snapshot_before,
+                        "prices": prices,
+                        "max_orders": competitor.max_orders_per_run,
+                        "max_position_pct": competitor.max_position_pct * 100,
+                    },
+                    llm_calls=llm_calls,
+                    competitor=competitor,
+                )
             
             if risk_guard_result.success:
                 trade_plan = risk_guard_result.output
@@ -490,17 +471,16 @@ class ArenaRunner:
                 errors.append(f"RiskGuard call failed: {risk_guard_result.error}")
                 
                 # Attempt repair
-                if risk_guard_result.raw_response:
-                    logger.info("Attempting repair for RiskGuard")
-                    trade_plan = self._repair_json_parse(
-                        risk_guard_result.raw_response,
-                        risk_guard_result.error or "Unknown error",
-                        TradePlan,
-                        get_trade_plan_schema(),
-                        llm_client,
-                        llm_calls,
-                        competitor,
-                    )
+                logger.info("Attempting repair for RiskGuard")
+                trade_plan = self._repair_json_parse(
+                    risk_guard_result.raw_response,
+                    risk_guard_result.error or "Unknown error",
+                    TradePlan,
+                    get_trade_plan_schema(),
+                    llm_client,
+                    llm_calls,
+                    competitor,
+                )
         else:
             errors.append("Skipping RiskGuard: No strategist proposal available")
         
@@ -535,7 +515,7 @@ class ArenaRunner:
         # ====================================================================
         if not dry_run:
             # Update call counter
-            self.storage.increment_call_count(competitor.provider, today_str, 2)
+            self.storage.increment_call_count(competitor.provider, today_str, len(llm_calls))
             
             # Save snapshot
             self.storage.save_snapshot(competitor.id, snapshot_after)
@@ -566,6 +546,59 @@ class ArenaRunner:
             "equity_after": snapshot_after.equity,
         }
     
+    def _invoke_with_retry(
+        self,
+        agent,
+        context: Dict,
+        llm_calls: List[LLMCall],
+        competitor: CompetitorConfig,
+        max_retries: int = 2,
+    ):
+        """
+        Invoke an agent with retries on failure.
+        
+        Args:
+            agent: The agent instance (Strategist or RiskGuard)
+            context: Context dictionary for the agent
+            llm_calls: List to append LLMCall logs to
+            competitor: Competitor config for logging
+            max_retries: Maximum number of retries
+            
+        Returns:
+            AgentResult (successful or last failed)
+        """
+        last_result = None
+        
+        for attempt in range(max_retries + 1):
+            if attempt > 0:
+                logger.info(f"Retrying {agent.name} (attempt {attempt+1}/{max_retries+1})")
+            
+            result = agent.invoke(context)
+            last_result = result
+            
+            # Log the call
+            # Map agent name to call_type convention
+            call_type = "strategist" if agent.name == "Strategist" else "risk_guard"
+            
+            llm_calls.append(LLMCall(
+                call_type=call_type,
+                provider=competitor.provider,
+                model=competitor.model,
+                prompt_tokens=result.prompt_tokens,
+                completion_tokens=result.completion_tokens,
+                latency_ms=result.latency_ms,
+                success=result.success,
+                error=result.error,
+                raw_response=result.raw_response,
+                prompt=result.prompt,
+                system_prompt=result.system_prompt,
+            ))
+            
+            if result.success:
+                return result
+        
+        return last_result
+
     def _repair_json_parse(
         self,
         malformed: str,
