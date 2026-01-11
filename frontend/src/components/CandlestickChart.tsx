@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { createChart, ColorType, CandlestickSeries, createSeriesMarkers } from 'lightweight-charts';
 import type { IChartApi, CandlestickData, Time, ISeriesApi, SeriesMarker, CandlestickSeriesOptions, ISeriesMarkersPluginApi } from 'lightweight-charts';
 import type { OHLCVBar, TradeRecord } from '../types';
@@ -15,11 +15,9 @@ export function CandlestickChart({ ticker, data, trades = [], height = 400 }: Ca
     const chartRef = useRef<IChartApi | null>(null);
     const candlestickSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
     const markersRef = useRef<ISeriesMarkersPluginApi<Time> | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
         if (!chartContainerRef.current || data.length === 0) {
-            setIsLoading(false);
             return;
         }
 
@@ -105,8 +103,6 @@ export function CandlestickChart({ ticker, data, trades = [], height = 400 }: Ca
         // Fit content
         chart.timeScale().fitContent();
 
-        setIsLoading(false);
-
         // Handle resize
         const handleResize = () => {
             if (chartContainerRef.current && chartRef.current) {
@@ -140,14 +136,6 @@ export function CandlestickChart({ ticker, data, trades = [], height = 400 }: Ca
 
     return (
         <div className="relative">
-            {isLoading && (
-                <div
-                    className="absolute inset-0 flex items-center justify-center bg-[var(--color-bg-primary)]/50"
-                    style={{ height }}
-                >
-                    <div className="animate-pulse text-[var(--color-text-muted)]">Loading chart...</div>
-                </div>
-            )}
             <div ref={chartContainerRef} style={{ height }} />
         </div>
     );

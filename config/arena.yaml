@@ -44,7 +44,7 @@ simulation:
 # Competitors (LLM configs)
 competitors:
   - id: openrouter_xiaomi_mimo_v2_flash
-    name: "OpenRouter Xiaomi Mimo v2 Flash"
+    name: "Xiaomi Mimo v2 Flash"
     provider: openrouter
     model: "xiaomi/mimo-v2-flash:free"
 
@@ -59,11 +59,16 @@ competitors:
     model: "gemini-2.5-flash-lite"
 
   - id: openrouter_devstral
-    name: "OpenRouter Devstral"
+    name: "Mistralai Devstral-2512"
     provider: openrouter
     model: "mistralai/devstral-2512:free"
 
   - id: openrouter_glm_4_5_air
-    name: "OpenRouter GLM 4.5 Air"
+    name: "GLM 4.5 Air"
     provider: openrouter
     model: "z-ai/glm-4.5-air:free"
+
+  - id: gemini_2_5_pro
+    name: "Gemini 2.5 Pro"
+    provider: gemini
+    model: "gemini-2.5-pro"

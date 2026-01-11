@@ -130,6 +130,10 @@ export interface LeaderboardEntry {
     total_return: number;
     max_drawdown: number;
     num_trades: number;
+    initial_equity?: number;
+    win_rate?: number;
+    avg_confidence?: number;
+    total_tokens?: number;
 }
 
 // ============================================

@@ -76,9 +76,9 @@ def fetch_leaderboard(conn: sqlite3.Connection, competitors: dict) -> list[dict]
             LIMIT 1
         """, (comp_id,))
         latest = cursor.fetchone()
-        current_equity = latest['equity'] if latest else 100000.0
+        current_equity = latest['equity'] if latest else 10000.0
         
-        # Get initial equity (first snapshot)
+        # Get initial equity (first snapshot or default $10,000)
         cursor.execute("""
             SELECT equity FROM snapshots 
             WHERE competitor_id = ? 
@@ -86,7 +86,7 @@ def fetch_leaderboard(conn: sqlite3.Connection, competitors: dict) -> list[dict]
             LIMIT 1
         """, (comp_id,))
         first = cursor.fetchone()
-        initial_equity = first['equity'] if first else current_equity
+        initial_equity = first['equity'] if first else 10000.0
         
         total_return = (current_equity - initial_equity) / initial_equity if initial_equity > 0 else 0
         
@@ -99,11 +99,48 @@ def fetch_leaderboard(conn: sqlite3.Connection, competitors: dict) -> list[dict]
         equities = [r['equity'] for r in cursor.fetchall() if r['equity']]
         max_dd = calculate_max_drawdown(equities)
         
-        # Count trades
+        # Count trades and calculate win rate
         cursor.execute("""
             SELECT COUNT(*) as cnt FROM trades WHERE competitor_id = ?
         """, (comp_id,))
         trade_count = cursor.fetchone()['cnt']
+        
+        # Win rate: trades where sell price > avg_cost (simplified: count profitable positions)
+        # For now, count trades - will refine when more data available
+        win_rate = 0.0
+        if trade_count > 0:
+            # Approximate: use realized P&L from snapshots
+            cursor.execute("""
+                SELECT realized_pnl FROM snapshots 
+                WHERE competitor_id = ? 
+                ORDER BY timestamp DESC LIMIT 1
+            """, (comp_id,))
+            pnl_row = cursor.fetchone()
+            realized_pnl = pnl_row['realized_pnl'] if pnl_row and pnl_row['realized_pnl'] else 0
+            win_rate = 1.0 if realized_pnl > 0 else 0.5 if realized_pnl == 0 else 0.0
+        
+        # Calculate avg confidence and total tokens from run_logs
+        cursor.execute("""
+            SELECT strategist_proposal_json, llm_calls_json 
+            FROM run_logs WHERE competitor_id = ?
+        """, (comp_id,))
+        
+        total_tokens = 0
+        confidence_scores = []
+        for row in cursor.fetchall():
+            # Parse LLM calls for tokens
+            llm_calls = safe_json_loads(row['llm_calls_json'], [])
+            for call in llm_calls:
+                total_tokens += call.get('prompt_tokens', 0) + call.get('completion_tokens', 0)
+            
+            # Parse proposals for confidence
+            proposal = safe_json_loads(row['strategist_proposal_json'])
+            if proposal and 'proposals' in proposal:
+                for p in proposal['proposals']:
+                    if 'confidence' in p:
+                        confidence_scores.append(p['confidence'])
+        
+        avg_confidence = sum(confidence_scores) / len(confidence_scores) if confidence_scores else 0.0
         
         leaderboard.append({
             'competitor_id': comp_id,
@@ -111,9 +148,13 @@ def fetch_leaderboard(conn: sqlite3.Connection, competitors: dict) -> list[dict]
             'provider': comp['provider'],
             'model': comp['model'],
             'current_equity': round(current_equity, 2),
+            'initial_equity': round(initial_equity, 2),
             'total_return': round(total_return, 6),
             'max_drawdown': round(max_dd, 4),
             'num_trades': trade_count,
+            'win_rate': round(win_rate, 2),
+            'avg_confidence': round(avg_confidence, 2),
+            'total_tokens': total_tokens,
         })
     
     # Sort by total return descending

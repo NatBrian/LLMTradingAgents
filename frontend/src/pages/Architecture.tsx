@@ -15,17 +15,6 @@ import {
 export function ArchitecturePage() {
     return (
         <div className="space-y-8">
-            {/* Page Header */}
-            <motion.div
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-            >
-                <h1 className="text-3xl font-bold gradient-text mb-2">System Architecture</h1>
-                <p className="text-[var(--color-text-secondary)]">
-                    Understand how the LLM Trading Arena works
-                </p>
-            </motion.div>
-
             {/* Overview */}
             <motion.div
                 initial={{ opacity: 0, y: 20 }}

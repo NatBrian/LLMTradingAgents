@@ -1,16 +1,8 @@
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    Brain,
-    Shield,
-    Clock,
-    Hash,
-    CheckCircle2,
-    XCircle,
-    ChevronDown,
-    ChevronRight,
-    Zap,
-    ArrowRight
+    Brain, Shield, Clock, Hash, CheckCircle2, XCircle, ChevronDown, ChevronRight,
+    Zap, ArrowRight, Cpu, Timer
 } from 'lucide-react';
 import type { DashboardData, RunLog, LLMCall } from '../types';
 
@@ -20,165 +12,201 @@ interface AIThinkingPageProps {
 
 export function AIThinkingPage({ data }: AIThinkingPageProps) {
     const { runLogs, leaderboard } = data;
+    const [selectedAgentId, setSelectedAgentId] = useState<string>('all');
     const [selectedRunId, setSelectedRunId] = useState<string>(runLogs[0]?.run_id || '');
+
+    // Filter runs by agent
+    const filteredRuns = useMemo(() => {
+        if (selectedAgentId === 'all') return runLogs;
+        return runLogs.filter(r => r.competitor_id === selectedAgentId);
+    }, [runLogs, selectedAgentId]);
 
     const selectedRun = useMemo(
         () => runLogs.find(r => r.run_id === selectedRunId),
         [runLogs, selectedRunId]
     );
 
-    // Get competitor name
     const getCompetitorName = (id: string) =>
         leaderboard.find(a => a.competitor_id === id)?.name || id;
 
-    return (
-        <div className="space-y-8">
-            {/* Page Header */}
-            <motion.div
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-            >
-                <h1 className="text-3xl font-bold gradient-text mb-2">AI Thinking Process</h1>
-                <p className="text-[var(--color-text-secondary)]">
-                    Explore how the AI analyzes markets and makes trading decisions
-                </p>
-            </motion.div>
+    // Global stats
+    const globalStats = useMemo(() => {
+        const allCalls = runLogs.flatMap(r => r.llm_calls || []);
+        const totalTokens = allCalls.reduce((sum, c) => sum + (c.prompt_tokens || 0) + (c.completion_tokens || 0), 0);
+        const avgLatency = allCalls.length > 0
+            ? allCalls.reduce((sum, c) => sum + (c.latency_ms || 0), 0) / allCalls.length
+            : 0;
+        const successRate = allCalls.length > 0
+            ? allCalls.filter(c => c.success).length / allCalls.length * 100
+            : 0;
+        return { totalCalls: allCalls.length, totalTokens, avgLatency, successRate };
+    }, [runLogs]);
 
-            {/* Empty State */}
-            {runLogs.length === 0 ? (
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="glass-card p-12 text-center"
-                >
-                    <Brain className="w-16 h-16 mx-auto mb-4 text-[var(--color-text-muted)]" />
-                    <h2 className="text-xl font-semibold text-[var(--color-text-primary)] mb-2">
-                        No Trading Sessions Yet
-                    </h2>
-                    <p className="text-[var(--color-text-secondary)]">
-                        Run a trading session to see how the AI analyzes markets and makes decisions.
-                    </p>
-                </motion.div>
-            ) : (
-                <>
-                    {/* Run Selector */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="glass-card p-6"
-                    >
-                        <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-2">
-                            Select Trading Session
-                        </label>
+    if (runLogs.length === 0) {
+        return (
+            <div className="bg-[var(--color-bg-secondary)] rounded-xl border border-[var(--color-border-secondary)] p-12 text-center">
+                <Brain className="w-16 h-16 mx-auto mb-4 text-[var(--color-text-muted)]" />
+                <h2 className="text-xl font-semibold text-[var(--color-text-primary)] mb-2">
+                    No Trading Sessions Yet
+                </h2>
+                <p className="text-[var(--color-text-secondary)]">
+                    Run a trading session to see how the AI analyzes markets and makes decisions.
+                </p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-6">
+            {/* Stats Row */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <StatCard icon={<Cpu className="w-5 h-5 text-blue-400" />} label="Total LLM Calls" value={globalStats.totalCalls.toString()} color="blue" />
+                <StatCard icon={<Hash className="w-5 h-5 text-purple-400" />} label="Total Tokens" value={globalStats.totalTokens.toLocaleString()} color="purple" />
+                <StatCard icon={<Timer className="w-5 h-5 text-amber-400" />} label="Avg Latency" value={`${(globalStats.avgLatency / 1000).toFixed(1)}s`} color="amber" />
+                <StatCard icon={<CheckCircle2 className="w-5 h-5 text-emerald-400" />} label="Success Rate" value={`${globalStats.successRate.toFixed(0)}%`} color="emerald" />
+            </div>
+
+            {/* Session Selector */}
+            <div className="bg-[var(--color-bg-secondary)] rounded-xl border border-[var(--color-border-secondary)] p-5">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                    <div className="flex-1">
+                        <label className="text-xs text-[var(--color-text-muted)] mb-2 block">Filter by Agent</label>
                         <select
-                            value={selectedRunId}
-                            onChange={(e) => setSelectedRunId(e.target.value)}
-                            className="w-full md:w-96 bg-[var(--color-bg-tertiary)] text-[var(--color-text-primary)] border border-[var(--color-border-primary)] rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent-primary)]"
+                            value={selectedAgentId}
+                            onChange={(e) => {
+                                setSelectedAgentId(e.target.value);
+                                const firstRun = e.target.value === 'all' ? runLogs[0] : runLogs.find(r => r.competitor_id === e.target.value);
+                                if (firstRun) setSelectedRunId(firstRun.run_id);
+                            }}
+                            className="w-full bg-[var(--color-bg-tertiary)] text-[var(--color-text-primary)] border border-[var(--color-border-primary)] rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-accent-primary)]"
                         >
-                            {runLogs.map(run => (
-                                <option key={run.run_id} value={run.run_id}>
-                                    {run.session_date} {run.session_type} — {getCompetitorName(run.competitor_id)}
+                            <option value="all">All Agents</option>
+                            {leaderboard.map(agent => (
+                                <option key={agent.competitor_id} value={agent.competitor_id}>
+                                    {agent.name}
                                 </option>
                             ))}
                         </select>
+                    </div>
+                    <div className="flex-1 sm:flex-[2]">
+                        <label className="text-xs text-[var(--color-text-muted)] mb-2 block">Select Session</label>
+                        <select
+                            value={selectedRunId}
+                            onChange={(e) => setSelectedRunId(e.target.value)}
+                            className="w-full bg-[var(--color-bg-tertiary)] text-[var(--color-text-primary)] border border-[var(--color-border-primary)] rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-accent-primary)]"
+                        >
+                            {filteredRuns.map(run => (
+                                <option key={run.run_id} value={run.run_id}>
+                                    {run.session_date} • {run.session_type} • {getCompetitorName(run.competitor_id)} • {run.fills.length} trades
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            {/* Selected Run Details */}
+            {selectedRun && (
+                <>
+                    {/* Run Header Card */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="bg-[var(--color-bg-secondary)] rounded-xl border border-[var(--color-border-secondary)] p-5"
+                    >
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 rounded-xl bg-[var(--color-accent-primary)]/20 flex items-center justify-center">
+                                    <Brain className="w-6 h-6 text-[var(--color-accent-primary)]" />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">
+                                        {getCompetitorName(selectedRun.competitor_id)}
+                                    </h3>
+                                    <p className="text-sm text-[var(--color-text-muted)]">
+                                        {selectedRun.session_date} • {selectedRun.session_type} Session
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="flex gap-6">
+                                <div className="text-center">
+                                    <p className="text-2xl font-bold text-[var(--color-text-primary)]">{selectedRun.llm_calls.length}</p>
+                                    <p className="text-xs text-[var(--color-text-muted)]">LLM Calls</p>
+                                </div>
+                                <div className="text-center">
+                                    <p className="text-2xl font-bold text-[var(--color-text-primary)]">{selectedRun.fills.length}</p>
+                                    <p className="text-xs text-[var(--color-text-muted)]">Trades</p>
+                                </div>
+                            </div>
+                        </div>
                     </motion.div>
 
-                    {selectedRun && (
-                        <>
-                            {/* Run Overview */}
-                            <motion.div
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.1 }}
-                                className="grid grid-cols-2 md:grid-cols-4 gap-4"
-                            >
-                                <MetricCard label="Date" value={selectedRun.session_date} />
-                                <MetricCard label="Session" value={selectedRun.session_type} />
-                                <MetricCard label="Agent" value={getCompetitorName(selectedRun.competitor_id)} />
-                                <MetricCard label="Trades Executed" value={selectedRun.fills.length.toString()} />
-                            </motion.div>
+                    {/* LLM Reasoning Pipeline */}
+                    <div className="space-y-4">
+                        <h2 className="text-lg font-semibold text-[var(--color-text-primary)] flex items-center gap-2">
+                            <Zap className="w-5 h-5 text-[var(--color-accent-primary)]" />
+                            LLM Reasoning Pipeline
+                        </h2>
 
-                            {/* LLM Calls Timeline */}
-                            <motion.div
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.2 }}
-                                className="space-y-6"
-                            >
-                                <h2 className="text-xl font-semibold text-[var(--color-text-primary)]">
-                                    LLM Reasoning Pipeline
-                                </h2>
+                        {selectedRun.llm_calls.map((call, index) => (
+                            <LLMCallCard key={index} call={call} index={index} isLast={index === selectedRun.llm_calls.length - 1} />
+                        ))}
+                    </div>
 
-                                {selectedRun.llm_calls.map((call, index) => (
-                                    <LLMCallCard
-                                        key={index}
-                                        call={call}
-                                        index={index}
-                                        isLast={index === selectedRun.llm_calls.length - 1}
-                                    />
-                                ))}
-                            </motion.div>
+                    {/* Proposal Flow */}
+                    {selectedRun.strategist_proposal && selectedRun.trade_plan && (
+                        <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="bg-[var(--color-bg-secondary)] rounded-xl border border-[var(--color-border-secondary)] p-5"
+                        >
+                            <h2 className="text-lg font-semibold text-[var(--color-text-primary)] mb-5 flex items-center gap-2">
+                                <Shield className="w-5 h-5 text-emerald-400" />
+                                Trade Proposals & Decisions
+                            </h2>
+                            <ProposalFlow proposal={selectedRun.strategist_proposal} tradePlan={selectedRun.trade_plan} />
+                        </motion.div>
+                    )}
 
-                            {/* Proposal → Decision Flow */}
-                            {selectedRun.strategist_proposal && selectedRun.trade_plan && (
-                                <motion.div
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: 0.3 }}
-                                    className="glass-card p-6"
-                                >
-                                    <h2 className="text-xl font-semibold text-[var(--color-text-primary)] mb-6">
-                                        Proposal → Decision Flow
-                                    </h2>
-                                    <ProposalFlow
-                                        proposal={selectedRun.strategist_proposal}
-                                        tradePlan={selectedRun.trade_plan}
-                                    />
-                                </motion.div>
-                            )}
-
-                            {/* Executed Trades */}
-                            {selectedRun.fills.length > 0 && (
-                                <motion.div
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: 0.4 }}
-                                    className="glass-card p-6"
-                                >
-                                    <h2 className="text-xl font-semibold text-[var(--color-text-primary)] mb-4">
-                                        Executed Trades
-                                    </h2>
-                                    <table className="data-table">
-                                        <thead>
-                                            <tr>
-                                                <th>Ticker</th>
-                                                <th>Side</th>
-                                                <th>Quantity</th>
-                                                <th>Fill Price</th>
-                                                <th>Notional</th>
-                                                <th>Fees</th>
+                    {/* Executed Trades */}
+                    {selectedRun.fills.length > 0 && (
+                        <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="bg-[var(--color-bg-secondary)] rounded-xl border border-[var(--color-border-secondary)] p-5"
+                        >
+                            <h2 className="text-lg font-semibold text-[var(--color-text-primary)] mb-4">
+                                Executed Trades
+                            </h2>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm">
+                                    <thead>
+                                        <tr className="border-b border-[var(--color-border-secondary)]">
+                                            <th className="text-left py-3 px-2 text-[var(--color-text-muted)] font-medium">Ticker</th>
+                                            <th className="text-left py-3 px-2 text-[var(--color-text-muted)] font-medium">Side</th>
+                                            <th className="text-right py-3 px-2 text-[var(--color-text-muted)] font-medium">Qty</th>
+                                            <th className="text-right py-3 px-2 text-[var(--color-text-muted)] font-medium">Price</th>
+                                            <th className="text-right py-3 px-2 text-[var(--color-text-muted)] font-medium">Notional</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {selectedRun.fills.map((fill, i) => (
+                                            <tr key={i} className="border-b border-[var(--color-border-secondary)]/50">
+                                                <td className="py-3 px-2 font-mono font-medium text-[var(--color-text-primary)]">{fill.ticker}</td>
+                                                <td className="py-3 px-2">
+                                                    <span className={`px-2 py-1 rounded text-xs font-medium ${fill.side === 'BUY' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
+                                                        {fill.side}
+                                                    </span>
+                                                </td>
+                                                <td className="py-3 px-2 text-right text-[var(--color-text-primary)]">{fill.qty}</td>
+                                                <td className="py-3 px-2 text-right font-mono text-[var(--color-text-primary)]">${fill.fill_price.toFixed(2)}</td>
+                                                <td className="py-3 px-2 text-right font-mono text-[var(--color-text-primary)]">${fill.notional.toLocaleString()}</td>
                                             </tr>
-                                        </thead>
-                                        <tbody>
-                                            {selectedRun.fills.map((fill, index) => (
-                                                <tr key={index}>
-                                                    <td className="font-mono font-medium">{fill.ticker}</td>
-                                                    <td>
-                                                        <span className={`badge ${fill.side === 'BUY' ? 'badge-success' : 'badge-danger'}`}>
-                                                            {fill.side}
-                                                        </span>
-                                                    </td>
-                                                    <td>{fill.qty}</td>
-                                                    <td className="font-mono">${fill.fill_price.toFixed(2)}</td>
-                                                    <td className="font-mono">${fill.notional.toLocaleString()}</td>
-                                                    <td className="font-mono text-[var(--color-text-muted)]">${fill.fees.toFixed(2)}</td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </motion.div>
-                            )}
-                        </>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </motion.div>
                     )}
                 </>
             )}
@@ -186,155 +214,93 @@ export function AIThinkingPage({ data }: AIThinkingPageProps) {
     );
 }
 
-// Metric Card Component
-function MetricCard({ label, value }: { label: string; value: string }) {
+function StatCard({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: string; color: string }) {
+    const colorClasses: Record<string, string> = {
+        blue: 'bg-blue-500/20',
+        purple: 'bg-purple-500/20',
+        amber: 'bg-amber-500/20',
+        emerald: 'bg-emerald-500/20'
+    };
     return (
-        <div className="glass-card p-4">
-            <p className="text-xs text-[var(--color-text-muted)] mb-1">{label}</p>
-            <p className="text-lg font-semibold text-[var(--color-text-primary)]">{value}</p>
+        <div className="bg-[var(--color-bg-secondary)] rounded-xl border border-[var(--color-border-secondary)] p-4">
+            <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-lg ${colorClasses[color]} flex items-center justify-center`}>
+                    {icon}
+                </div>
+                <div>
+                    <p className="text-xs text-[var(--color-text-muted)]">{label}</p>
+                    <p className="text-lg font-bold text-[var(--color-text-primary)]">{value}</p>
+                </div>
+            </div>
         </div>
     );
 }
 
-// LLM Call Card Component
 function LLMCallCard({ call, index, isLast }: { call: LLMCall; index: number; isLast: boolean }) {
-    const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
+    const [expanded, setExpanded] = useState<string | null>(null);
 
-    const toggleSection = (section: string) => {
-        setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
-    };
+    const toggleSection = (section: string) => setExpanded(expanded === section ? null : section);
 
-    const getCallIcon = (type: string) => {
+    const getCallConfig = (type: string) => {
         switch (type) {
-            case 'strategist':
-                return <Brain className="w-5 h-5" />;
-            case 'risk_guard':
-                return <Shield className="w-5 h-5" />;
-            default:
-                return <Zap className="w-5 h-5" />;
+            case 'strategist': return { icon: <Brain className="w-5 h-5" />, title: 'Strategist Agent', color: 'bg-blue-500/20 text-blue-400' };
+            case 'risk_guard': return { icon: <Shield className="w-5 h-5" />, title: 'Risk Guard Agent', color: 'bg-emerald-500/20 text-emerald-400' };
+            default: return { icon: <Zap className="w-5 h-5" />, title: 'JSON Repair', color: 'bg-amber-500/20 text-amber-400' };
         }
     };
 
-    const getCallTitle = (type: string) => {
-        switch (type) {
-            case 'strategist':
-                return 'Strategist Agent';
-            case 'risk_guard':
-                return 'Risk Guard Agent';
-            case 'repair':
-                return 'JSON Repair';
-            default:
-                return type;
-        }
-    };
+    const config = getCallConfig(call.call_type);
 
     return (
         <div className="relative">
-            {/* Connection Line */}
-            {!isLast && (
-                <div className="absolute left-6 top-20 bottom-0 w-0.5 bg-gradient-to-b from-[var(--color-accent-primary)] to-transparent" />
-            )}
+            {!isLast && <div className="absolute left-6 top-16 bottom-0 w-0.5 bg-gradient-to-b from-[var(--color-border-secondary)] to-transparent" />}
 
             <motion.div
-                initial={{ opacity: 0, x: -20 }}
+                initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.15 }}
-                className="glass-card overflow-hidden"
+                transition={{ delay: index * 0.05 }}
+                className="bg-[var(--color-bg-secondary)] rounded-xl border border-[var(--color-border-secondary)] overflow-hidden"
             >
                 {/* Header */}
-                <div className="flex items-center justify-between p-4 border-b border-[var(--color-border-primary)] bg-[var(--color-bg-tertiary)]">
+                <div className="flex items-center justify-between p-4 border-b border-[var(--color-border-secondary)]">
                     <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${call.call_type === 'strategist'
-                            ? 'bg-blue-500/20 text-blue-400'
-                            : call.call_type === 'risk_guard'
-                                ? 'bg-green-500/20 text-green-400'
-                                : 'bg-yellow-500/20 text-yellow-400'
-                            }`}>
-                            {getCallIcon(call.call_type)}
+                        <div className={`w-10 h-10 rounded-lg ${config.color} flex items-center justify-center`}>
+                            {config.icon}
                         </div>
                         <div>
-                            <h3 className="font-semibold text-[var(--color-text-primary)]">
-                                {getCallTitle(call.call_type)}
-                            </h3>
-                            <p className="text-xs text-[var(--color-text-muted)]">
-                                {call.provider}/{call.model}
-                            </p>
+                            <h3 className="font-semibold text-[var(--color-text-primary)]">{config.title}</h3>
+                            <p className="text-xs text-[var(--color-text-muted)]">Latency: {call.latency_ms}ms</p>
                         </div>
                     </div>
-
-                    <div className="flex items-center gap-4">
-                        {/* Metrics */}
-                        <div className="hidden sm:flex items-center gap-4 text-sm">
-                            <div className="flex items-center gap-1.5 text-[var(--color-text-secondary)]">
-                                <Clock className="w-4 h-4" />
-                                <span>{call.latency_ms}ms</span>
-                            </div>
-                            <div className="flex items-center gap-1.5 text-[var(--color-text-secondary)]">
-                                <Hash className="w-4 h-4" />
-                                <span>{call.prompt_tokens + call.completion_tokens} tokens</span>
-                            </div>
-                        </div>
-
-                        {/* Status */}
-                        {call.success ? (
-                            <CheckCircle2 className="w-5 h-5 text-[var(--color-accent-success)]" />
-                        ) : (
-                            <XCircle className="w-5 h-5 text-[var(--color-accent-danger)]" />
-                        )}
+                    <div className="flex items-center gap-3 text-sm">
+                        <span className="text-[var(--color-text-muted)] hidden sm:inline"><Clock className="w-4 h-4 inline mr-1" />{call.latency_ms}ms</span>
+                        <span className="text-[var(--color-text-muted)] hidden sm:inline"><Hash className="w-4 h-4 inline mr-1" />{(call.prompt_tokens || 0) + (call.completion_tokens || 0)}</span>
+                        {call.success ? <CheckCircle2 className="w-5 h-5 text-emerald-400" /> : <XCircle className="w-5 h-5 text-red-400" />}
                     </div>
                 </div>
 
                 {/* Expandable Sections */}
                 <div className="divide-y divide-[var(--color-border-secondary)]">
-                    {/* System Prompt */}
                     {call.system_prompt && (
-                        <ExpandableSection
-                            title="System Prompt"
-                            isExpanded={expandedSections['system']}
-                            onToggle={() => toggleSection('system')}
-                            icon="⚙️"
-                        >
-                            <pre className="code-block text-xs whitespace-pre-wrap overflow-x-auto">
-                                {call.system_prompt}
-                            </pre>
-                        </ExpandableSection>
+                        <ExpandSection title="System Prompt" icon={<Cpu className="w-4 h-4" />} expanded={expanded === 'system'} onClick={() => toggleSection('system')}>
+                            <pre className="bg-[var(--color-bg-tertiary)] rounded-lg p-4 text-xs text-[var(--color-text-secondary)] whitespace-pre-wrap overflow-x-auto max-h-48 overflow-y-auto">{call.system_prompt}</pre>
+                        </ExpandSection>
                     )}
-
-                    {/* User Prompt */}
                     {call.prompt && (
-                        <ExpandableSection
-                            title="User Prompt (Market Briefing)"
-                            isExpanded={expandedSections['prompt']}
-                            onToggle={() => toggleSection('prompt')}
-                            icon="📝"
-                        >
-                            <pre className="code-block text-xs whitespace-pre-wrap overflow-x-auto max-h-96 overflow-y-auto">
-                                {call.prompt}
-                            </pre>
-                        </ExpandableSection>
+                        <ExpandSection title="Market Briefing" icon={<Brain className="w-4 h-4" />} expanded={expanded === 'prompt'} onClick={() => toggleSection('prompt')}>
+                            <pre className="bg-[var(--color-bg-tertiary)] rounded-lg p-4 text-xs text-[var(--color-text-secondary)] whitespace-pre-wrap overflow-x-auto max-h-48 overflow-y-auto">{call.prompt}</pre>
+                        </ExpandSection>
                     )}
-
-                    {/* Raw Output */}
                     {call.raw_response && (
-                        <ExpandableSection
-                            title="Raw Output (JSON)"
-                            isExpanded={expandedSections['output']}
-                            onToggle={() => toggleSection('output')}
-                            icon="📤"
-                        >
-                            <pre className="code-block text-xs overflow-x-auto">
-                                <code>{formatJSON(call.raw_response)}</code>
-                            </pre>
-                        </ExpandableSection>
+                        <ExpandSection title="LLM Response" icon={<ArrowRight className="w-4 h-4" />} expanded={expanded === 'output'} onClick={() => toggleSection('output')}>
+                            <pre className="bg-[var(--color-bg-tertiary)] rounded-lg p-4 text-xs text-[var(--color-text-secondary)] overflow-x-auto max-h-48 overflow-y-auto">{formatJSON(call.raw_response)}</pre>
+                        </ExpandSection>
                     )}
                 </div>
 
-                {/* Error */}
                 {call.error && (
                     <div className="p-4 bg-red-500/10 border-t border-red-500/20">
-                        <p className="text-sm text-[var(--color-accent-danger)]">
-                            Error: {call.error}
-                        </p>
+                        <p className="text-sm text-red-400">Error: {call.error}</p>
                     </div>
                 )}
             </motion.div>
@@ -342,45 +308,16 @@ function LLMCallCard({ call, index, isLast }: { call: LLMCall; index: number; is
     );
 }
 
-// Expandable Section Component
-function ExpandableSection({
-    title,
-    isExpanded,
-    onToggle,
-    icon,
-    children,
-}: {
-    title: string;
-    isExpanded: boolean;
-    onToggle: () => void;
-    icon: string;
-    children: React.ReactNode;
-}) {
+function ExpandSection({ title, icon, expanded, onClick, children }: { title: string; icon: React.ReactNode; expanded: boolean; onClick: () => void; children: React.ReactNode }) {
     return (
         <div>
-            <button
-                onClick={onToggle}
-                className="w-full flex items-center justify-between p-4 hover:bg-[var(--color-bg-tertiary)] transition-colors"
-            >
-                <div className="flex items-center gap-2">
-                    <span>{icon}</span>
-                    <span className="text-sm font-medium text-[var(--color-text-secondary)]">{title}</span>
-                </div>
-                {isExpanded ? (
-                    <ChevronDown className="w-4 h-4 text-[var(--color-text-muted)]" />
-                ) : (
-                    <ChevronRight className="w-4 h-4 text-[var(--color-text-muted)]" />
-                )}
+            <button onClick={onClick} className="w-full flex items-center justify-between p-4 hover:bg-[var(--color-bg-tertiary)] transition-colors">
+                <span className="flex items-center gap-2 text-sm font-medium text-[var(--color-text-secondary)]">{icon}{title}</span>
+                {expanded ? <ChevronDown className="w-4 h-4 text-[var(--color-text-muted)]" /> : <ChevronRight className="w-4 h-4 text-[var(--color-text-muted)]" />}
             </button>
             <AnimatePresence>
-                {isExpanded && (
-                    <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.2 }}
-                        className="overflow-hidden"
-                    >
+                {expanded && (
+                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
                         <div className="p-4 pt-0">{children}</div>
                     </motion.div>
                 )}
@@ -389,98 +326,58 @@ function ExpandableSection({
     );
 }
 
-// Proposal Flow Visualization
-function ProposalFlow({
-    proposal,
-    tradePlan
-}: {
-    proposal: NonNullable<RunLog['strategist_proposal']>;
-    tradePlan: NonNullable<RunLog['trade_plan']>;
-}) {
+function ProposalFlow({ proposal, tradePlan }: { proposal: NonNullable<RunLog['strategist_proposal']>; tradePlan: NonNullable<RunLog['trade_plan']> }) {
     const approvedTickers = new Set(tradePlan.orders.map(o => o.ticker));
 
     return (
         <div className="space-y-4">
-            {/* Market Summary */}
             {proposal.market_summary && (
-                <div className="p-4 bg-[var(--color-bg-tertiary)] rounded-lg mb-6">
-                    <p className="text-sm text-[var(--color-text-secondary)] mb-1">Market Summary</p>
-                    <p className="text-[var(--color-text-primary)]">{proposal.market_summary}</p>
+                <div className="p-4 bg-[var(--color-bg-tertiary)] rounded-lg">
+                    <p className="text-xs text-[var(--color-text-muted)] mb-1">Market Summary</p>
+                    <p className="text-sm text-[var(--color-text-primary)]">{proposal.market_summary}</p>
                 </div>
             )}
 
-            {/* Proposals Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {proposal.proposals.map((prop, index) => {
+                {proposal.proposals.map((prop, idx) => {
                     const isApproved = approvedTickers.has(prop.ticker);
                     const order = tradePlan.orders.find(o => o.ticker === prop.ticker);
 
                     return (
-                        <motion.div
-                            key={prop.ticker}
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            transition={{ delay: index * 0.1 }}
-                            className={`p-4 rounded-lg border ${isApproved
-                                ? 'border-[var(--color-accent-success)]/30 bg-[var(--color-accent-success)]/5'
-                                : prop.action === 'HOLD'
-                                    ? 'border-[var(--color-border-primary)] bg-[var(--color-bg-secondary)]'
-                                    : 'border-[var(--color-accent-danger)]/30 bg-[var(--color-accent-danger)]/5'
-                                }`}
+                        <div
+                            key={idx}
+                            className={`p-4 rounded-lg border ${isApproved ? 'border-emerald-500/30 bg-emerald-500/5' : prop.action === 'HOLD' ? 'border-[var(--color-border-secondary)] bg-[var(--color-bg-tertiary)]' : 'border-red-500/30 bg-red-500/5'}`}
                         >
-                            <div className="flex items-start justify-between mb-3">
+                            <div className="flex items-center justify-between mb-2">
                                 <div className="flex items-center gap-2">
-                                    <span className="font-mono font-bold text-lg text-[var(--color-text-primary)]">
-                                        {prop.ticker}
-                                    </span>
-                                    <span className={`badge ${prop.action === 'BUY' ? 'badge-success' :
-                                        prop.action === 'SELL' ? 'badge-danger' :
-                                            'badge-warning'
-                                        }`}>
+                                    <span className="font-mono font-bold text-[var(--color-text-primary)]">{prop.ticker}</span>
+                                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${prop.action === 'BUY' ? 'bg-emerald-500/20 text-emerald-400' : prop.action === 'SELL' ? 'bg-red-500/20 text-red-400' : 'bg-gray-500/20 text-gray-400'}`}>
                                         {prop.action}
                                     </span>
                                 </div>
-                                <div className="text-right">
-                                    <p className="text-xs text-[var(--color-text-muted)]">Confidence</p>
-                                    <p className={`font-bold ${prop.confidence >= 0.7 ? 'value-positive' :
-                                        prop.confidence >= 0.5 ? 'text-[var(--color-accent-warning)]' :
-                                            'value-negative'
-                                        }`}>
-                                        {(prop.confidence * 100).toFixed(0)}%
-                                    </p>
-                                </div>
+                                <span className={`text-sm font-bold ${prop.confidence >= 0.7 ? 'text-emerald-400' : prop.confidence >= 0.5 ? 'text-amber-400' : 'text-red-400'}`}>
+                                    {(prop.confidence * 100).toFixed(0)}%
+                                </span>
                             </div>
-
-                            <p className="text-sm text-[var(--color-text-secondary)] mb-3">
-                                {prop.rationale}
-                            </p>
-
-                            {/* Decision Arrow */}
-                            <div className="flex items-center gap-2 pt-3 border-t border-[var(--color-border-secondary)]">
+                            <p className="text-xs text-[var(--color-text-secondary)] mb-3">{prop.rationale}</p>
+                            <div className="flex items-center gap-2 pt-2 border-t border-[var(--color-border-secondary)]">
                                 <ArrowRight className="w-4 h-4 text-[var(--color-text-muted)]" />
                                 {isApproved && order ? (
-                                    <span className="text-sm text-[var(--color-accent-success)] font-medium">
-                                        ✓ APPROVED → {order.side} {order.qty} shares
-                                    </span>
+                                    <span className="text-xs text-emerald-400 font-medium">✓ Approved → {order.side} {order.qty} shares</span>
                                 ) : prop.action === 'HOLD' ? (
-                                    <span className="text-sm text-[var(--color-text-muted)]">
-                                        No action (HOLD)
-                                    </span>
+                                    <span className="text-xs text-[var(--color-text-muted)]">Hold (no action)</span>
                                 ) : (
-                                    <span className="text-sm text-[var(--color-accent-danger)]">
-                                        ✗ VETOED
-                                    </span>
+                                    <span className="text-xs text-red-400">✗ Vetoed by Risk Guard</span>
                                 )}
                             </div>
-                        </motion.div>
+                        </div>
                     );
                 })}
             </div>
 
-            {/* Risk Assessment */}
             {tradePlan.risk_assessment && (
-                <div className="mt-6 p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
-                    <p className="text-sm font-medium text-yellow-400 mb-1">Risk Assessment</p>
+                <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+                    <p className="text-xs font-medium text-amber-400 mb-1">Risk Assessment</p>
                     <p className="text-sm text-[var(--color-text-secondary)]">{tradePlan.risk_assessment}</p>
                 </div>
             )}
@@ -488,12 +385,7 @@ function ProposalFlow({
     );
 }
 
-// Helper function to format JSON with syntax highlighting classes
-function formatJSON(jsonString: string): string {
-    try {
-        const parsed = JSON.parse(jsonString);
-        return JSON.stringify(parsed, null, 2);
-    } catch {
-        return jsonString;
-    }
+function formatJSON(str: string): string {
+    try { return JSON.stringify(JSON.parse(str), null, 2); }
+    catch { return str; }
 }

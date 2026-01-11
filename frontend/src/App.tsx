@@ -1,12 +1,12 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { Layout } from './components/Layout';
 import { useData } from './hooks/useData';
-import { OverviewPage } from './pages/Overview';
+import { CommandCenter } from './pages/CommandCenter';
 import { AIThinkingPage } from './pages/AIThinking';
 import { PortfolioPage } from './pages/Portfolio';
 import { MarketPage } from './pages/Market';
 import { TradeHistoryPage } from './pages/TradeHistory';
 import { ArchitecturePage } from './pages/Architecture';
+import { PageWrapper } from './components/PageWrapper';
 import './index.css';
 
 function App() {
@@ -26,16 +26,37 @@ function App() {
 
   return (
     <BrowserRouter>
-      <Layout lastUpdated={data.metadata.lastUpdated}>
-        <Routes>
-          <Route path="/" element={<OverviewPage data={data} />} />
-          <Route path="/thinking" element={<AIThinkingPage data={data} />} />
-          <Route path="/portfolio" element={<PortfolioPage data={data} />} />
-          <Route path="/market" element={<MarketPage data={data} />} />
-          <Route path="/trades" element={<TradeHistoryPage data={data} />} />
-          <Route path="/architecture" element={<ArchitecturePage />} />
-        </Routes>
-      </Layout>
+      <Routes>
+        {/* Main Dashboard */}
+        <Route path="/" element={<CommandCenter data={data} />} />
+
+        {/* Pages with PageWrapper for consistent navigation */}
+        <Route path="/thinking" element={
+          <PageWrapper title="AI Thinking" subtitle="Explore how LLM agents make trading decisions">
+            <AIThinkingPage data={data} />
+          </PageWrapper>
+        } />
+        <Route path="/portfolio" element={
+          <PageWrapper title="Portfolio" subtitle="View agent holdings, allocations, and AI activity">
+            <PortfolioPage data={data} />
+          </PageWrapper>
+        } />
+        <Route path="/market" element={
+          <PageWrapper title="Markets" subtitle="Candlestick charts with trade markers">
+            <MarketPage data={data} />
+          </PageWrapper>
+        } />
+        <Route path="/trades" element={
+          <PageWrapper title="Trade History" subtitle="Browse and analyze all executed trades">
+            <TradeHistoryPage data={data} />
+          </PageWrapper>
+        } />
+        <Route path="/architecture" element={
+          <PageWrapper title="System Architecture" subtitle="Understand how the LLM Trading Arena works">
+            <ArchitecturePage />
+          </PageWrapper>
+        } />
+      </Routes>
     </BrowserRouter>
   );
 }

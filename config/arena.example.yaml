@@ -55,7 +55,7 @@ simulation:
 competitors:
   # OpenRouter competitor using free model
   - id: openrouter_xiaomi_mimo_v2_flash
-    name: "OpenRouter Xiaomi Mimo v2 Flash"
+    name: "Xiaomi Mimo v2 Flash"
     provider: openrouter
     model: "xiaomi/mimo-v2-flash:free"
     # Override defaults per competitor:
@@ -72,7 +72,7 @@ competitors:
 # Additional competitor examples (uncomment to add):
 #
 # - id: openrouter_gpt_120b
-#   name: "OpenRouter GPT-120B"
+#   name: "GPT-120B"
 #   provider: openrouter
 #   model: "openai/gpt-oss-120b:free"
 #
