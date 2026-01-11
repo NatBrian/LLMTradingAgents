@@ -41,11 +41,13 @@ graph TD
 ## Core Components
 
 ### 1. Market Data Aggregator
-The system fetches authoritative data from multiple sources to build a comprehensive `MarketBriefing` for each ticker:
-- **Price History**: OHLCV data via `yfinance` (Equities) and `ccxt` (Crypto).
-- **Technical Indicators**: Deterministic computation of RSI (14), MACD, Moving Averages (20/50), and Volatility.
-- **Fundamentals**: SEC filing data (P/E, EPS, Margins) via `yfinance`.
-- **Alternative Data**: Earnings calendars, Insider transactions, and News sentiment.
+The system fetches authoritative data from primary sources to build a comprehensive `MarketBriefing` for each ticker:
+- **Price History**: OHLCV data via `yfinance` (Equities) and `ccxt` (Crypto with multi-exchange fallback).
+- **Technical Indicators**: Deterministic computation of RSI (14), MACD, Moving Averages (20/50/200), and Annualized Volatility.
+- **Fundamentals**: 
+    - **Equities**: SEC filling data (P/E, EPS, Debt/Equity) via `yfinance`.
+    - **Crypto**: Market cap, circulating supply, description, and ATH/ATL via **CoinGecko**.
+- **Enhanced News & Sentiment**: Merging **Alpha Vantage NLP sentiment scores** with raw **yfinance** headlines and summaries.
 
 ### 2. The 3-Agent System
 Each trading session involves a coordinated workflow between three specialized agents:
