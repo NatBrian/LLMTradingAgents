@@ -11,6 +11,7 @@ from datetime import datetime, timedelta
 import pandas as pd
 import yfinance as yf
 import logging
+from .utils import normalize_yahoo_ticker
 
 logger = logging.getLogger(__name__)
 
@@ -76,8 +77,11 @@ def fetch_price_history(
     Returns:
         PriceHistoryData with OHLCV bars
     """
+    # Normalize ticker (e.g. XRP/USDT -> XRP-USD)
+    y_ticker = normalize_yahoo_ticker(ticker)
+    
     try:
-        stock = yf.Ticker(ticker)
+        stock = yf.Ticker(y_ticker)
         
         # Fetch history
         end_date = datetime.now()

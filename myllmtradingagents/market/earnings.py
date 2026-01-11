@@ -10,6 +10,7 @@ from datetime import datetime, date
 
 import yfinance as yf
 import logging
+from .utils import normalize_yahoo_ticker
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +32,10 @@ class EarningsData:
         if self.recent_earnings_dates is None:
             self.recent_earnings_dates = []
 
+    def __bool__(self):
+        """Return True if any field is populated, False otherwise."""
+        return bool(self.next_earnings_date or self.recent_earnings_dates)
+
 
 def fetch_earnings_calendar(ticker: str) -> EarningsData:
     """
@@ -42,13 +47,16 @@ def fetch_earnings_calendar(ticker: str) -> EarningsData:
     Returns:
         EarningsData with next earnings date info
     """
+    # Normalize ticker (e.g. XRP/USDT -> XRP-USD)
+    y_ticker = normalize_yahoo_ticker(ticker)
+    
     try:
-        stock = yf.Ticker(ticker)
+        stock = yf.Ticker(y_ticker)
         
         # Try to get earnings dates
         calendar = None
         try:
-            logger.debug(f"Fetching earnings calendar for {ticker}...", extra={"ticker": ticker})
+            logger.debug(f"Fetching earnings calendar for {ticker} (via {y_ticker})...", extra={"ticker": ticker})
             calendar = stock.calendar
             if calendar is not None:
                 logger.debug(f"Fetched earnings calendar for {ticker}", extra={"ticker": ticker, "type": type(calendar)})

@@ -261,16 +261,12 @@ class ArenaRunner:
             except Exception as e:
                 logger.debug(f"  Warning: Could not fetch Alpha Vantage news for {ticker}: {e}")
             
-            # Fallback: If no Alpha Vantage articles, try Yahoo Finance
+            # Also fetch standard news headlines/articles from yfinance
             news_articles = []
-            if news_sentiment and news_sentiment.articles:
-                # Use Alpha Vantage articles if available
-                pass
-            else:
-                try:
-                    news_articles = fetch_news_articles(ticker, limit=5)
-                except Exception as e:
-                    logger.debug(f"  Warning: Could not fetch Yahoo Finance news for {ticker}: {e}")
+            try:
+                news_articles = fetch_news_articles(ticker, limit=5)
+            except Exception as e:
+                logger.debug(f"  Warning: Could not fetch Yahoo Finance news for {ticker}: {e}")
             
             # Build the comprehensive briefing
             briefing = build_market_briefing(

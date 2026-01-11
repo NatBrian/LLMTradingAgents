@@ -53,22 +53,22 @@ competitors:
     provider: gemini
     model: "gemini-2.5-flash"
 
-  - id: gemini_2_5_flash_lite
-    name: "Gemini 2.5 Flash Lite"
-    provider: gemini
-    model: "gemini-2.5-flash-lite"
-
   - id: openrouter_devstral
     name: "Mistralai Devstral-2512"
     provider: openrouter
     model: "mistralai/devstral-2512:free"
+
+  - id: gemini_2_5_pro
+    name: "Gemini 2.5 Pro"
+    provider: gemini
+    model: "gemini-2.5-pro"
 
   - id: openrouter_glm_4_5_air
     name: "GLM 4.5 Air"
     provider: openrouter
     model: "z-ai/glm-4.5-air:free"
 
-  - id: gemini_2_5_pro
-    name: "Gemini 2.5 Pro"
+  - id: gemini_2_5_flash_lite
+    name: "Gemini 2.5 Flash Lite"
     provider: gemini
-    model: "gemini-2.5-pro"
+    model: "gemini-2.5-flash-lite"

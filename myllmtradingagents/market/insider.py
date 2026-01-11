@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 
 import yfinance as yf
 import logging
+from .utils import normalize_yahoo_ticker
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +43,10 @@ class InsiderData:
     buy_value_90d: float = 0.0
     sell_value_90d: float = 0.0
 
+    def __bool__(self):
+        """Return True if there are any transactions."""
+        return bool(self.transactions)
+
 
 def fetch_insider_transactions(ticker: str) -> InsiderData:
     """
@@ -55,13 +60,16 @@ def fetch_insider_transactions(ticker: str) -> InsiderData:
     Returns:
         InsiderData with recent transactions
     """
+    # Normalize ticker (e.g. XRP/USDT -> XRP-USD)
+    y_ticker = normalize_yahoo_ticker(ticker)
+    
     try:
-        stock = yf.Ticker(ticker)
+        stock = yf.Ticker(y_ticker)
         
         # Get insider transactions
         insider_df = None
         try:
-            logger.debug(f"Fetching insider transactions for {ticker}...", extra={"ticker": ticker})
+            logger.debug(f"Fetching insider transactions for {ticker} (via {y_ticker})...", extra={"ticker": ticker})
             insider_df = stock.insider_transactions
             if insider_df is not None and not insider_df.empty:
                 logger.debug(f"Fetched {len(insider_df)} insider transactions for {ticker}", extra={"ticker": ticker, "rows": len(insider_df)})

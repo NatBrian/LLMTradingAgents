@@ -21,10 +21,8 @@ from .fundamentals import FundamentalsData
 from .earnings import EarningsData
 from .insider import InsiderData, InsiderTransaction
 from .price_history import PriceHistoryData, PriceBar
+from .alpha_vantage import NewsSentimentData
 
-# Import Alpha Vantage types (optional)
-if TYPE_CHECKING:
-    from .alpha_vantage import NewsSentimentData
 import logging
 
 logger = logging.getLogger(__name__)
@@ -89,9 +87,7 @@ class MarketBriefing:
     # News
     news_headlines: List[str] = field(default_factory=list)
     news_articles: List[dict] = field(default_factory=list)
-    
-    # Optional: Alpha Vantage news sentiment (if ALPHA_VANTAGE_API_KEY is set)
-    news_sentiment: Optional["NewsSentimentData"] = None
+    news_sentiment: Optional[NewsSentimentData] = None
     
     def to_prompt_string(self, include_price_history: bool = True, max_history_rows: int = 30) -> str:
         """
@@ -144,10 +140,15 @@ class MarketBriefing:
                 sections.append(f"Volatility (20-day annualized): {self.volatility_20d:.1%}")
         
         # Technical Indicators Section
-        sections.append("")
-        sections.append("─" * 40)
-        sections.append("TECHNICAL INDICATORS (Computed using standard formulas)")
-        sections.append("─" * 40)
+        has_technicals = any(x is not None for x in [
+            self.rsi_14, self.macd_line, self.ma_20, self.ma_50, self.ma_200
+        ])
+        
+        if has_technicals:
+            sections.append("")
+            sections.append("─" * 40)
+            sections.append("TECHNICAL INDICATORS (Computed using standard formulas)")
+            sections.append("─" * 40)
         
         if self.rsi_14 is not None:
             sections.append(f"RSI (14-period): {self.rsi_14:.1f}")
@@ -174,8 +175,17 @@ class MarketBriefing:
             f = self.fundamentals
             sections.append("")
             sections.append("─" * 40)
-            sections.append("FUNDAMENTALS (Source: SEC Filings via yfinance)")
+            
+            # Change source label based on data type
+            is_crypto = f.circulating_supply is not None
+            source = "CoinGecko" if is_crypto else "SEC Filings via yfinance"
+            sections.append(f"FUNDAMENTALS (Source: {source})")
             sections.append("─" * 40)
+            
+            # Crypto Description
+            if f.description:
+                sections.append(f"Description: {f.description}")
+                sections.append("")
             
             # Valuation
             val_parts = []
@@ -186,14 +196,30 @@ class MarketBriefing:
                     val_parts.append(f"Market Cap: ${f.market_cap/1e9:.2f}B")
                 else:
                     val_parts.append(f"Market Cap: ${f.market_cap/1e6:.0f}M")
+            
+            # Crypto Supply
+            if f.circulating_supply:
+                 val_parts.append(f"Circ. Supply: {f.circulating_supply:,.0f}")
+            if f.total_supply:
+                 val_parts.append(f"Total Supply: {f.total_supply:,.0f}")
+                 
+            # Stock Valuation Metrics
             if f.pe_ratio:
                 val_parts.append(f"P/E (TTM): {f.pe_ratio:.1f}")
             if f.forward_pe:
                 val_parts.append(f"Forward P/E: {f.forward_pe:.1f}")
             if f.peg_ratio:
                 val_parts.append(f"PEG: {f.peg_ratio:.2f}")
+                
             if val_parts:
-                sections.append("Valuation: " + " | ".join(val_parts))
+                sections.append("Valuation & Supply: " + " | ".join(val_parts))
+            
+            # Crypto ATH/ATL
+            if f.all_time_high:
+                ath_parts = [f"All-Time High: ${f.all_time_high:.2f}"]
+                if f.all_time_low:
+                     ath_parts.append(f"All-Time Low: ${f.all_time_low:.2f}")
+                sections.append(" | ".join(ath_parts))
             
             # Earnings
             earn_parts = []
@@ -258,53 +284,61 @@ class MarketBriefing:
                     f"{t.transaction_type:4} | {t.shares:>9,} | {value_str}"
                 )
         
-        # News Section (with optional Alpha Vantage sentiment)
+        # News Section (Merged view for 360-degree coverage)
         if self.news_sentiment or self.news_headlines or self.news_articles:
             sections.append("")
             sections.append("─" * 40)
+            sections.append("NEWS & NLP SENTIMENT (Source: Alpha Vantage & yfinance)")
+            sections.append("─" * 40)
             
-            # If we have Alpha Vantage sentiment, use that
-            if self.news_sentiment and self.news_sentiment.articles:
-                sections.append("NEWS WITH SENTIMENT (Source: Alpha Vantage NLP)")
-                sections.append("─" * 40)
-                
-                # Show overall sentiment
+            seen_headlines = set()
+
+            # 1. Show overall sentiment summary if available
+            if self.news_sentiment:
                 ns = self.news_sentiment
-                sections.append(
-                    f"Overall Sentiment: {ns.overall_sentiment_label} "
-                    f"(score: {ns.overall_sentiment_score:+.2f})"
-                )
-                sections.append(
-                    f"Article Breakdown: {ns.bullish_count} bullish, "
-                    f"{ns.bearish_count} bearish, {ns.neutral_count} neutral"
-                )
-                sections.append("")
-                
-                # Show articles with sentiment
-                for i, article in enumerate(ns.articles[:10], 1):
-                    sent_str = f"[{article.get('sentiment_label', 'N/A')}: {article.get('sentiment_score', 0):+.2f}]"
-                    sections.append(f"[{i}] {article.get('source', 'Unknown')} {sent_str}")
-                    sections.append(f"    \"{article.get('title', '')}\"")
-                    if article.get('summary'):
-                        summary = article['summary'][:200]
-                        if len(article['summary']) > 200:
-                            summary += "..."
-                        sections.append(f"    {summary}")
+                if ns.overall_sentiment_score is not None:
+                    sections.append(
+                        f"Overall Sentiment: {ns.overall_sentiment_label} "
+                        f"(score: {ns.overall_sentiment_score:+.2f})"
+                    )
+                    sections.append(
+                        f"Article Breakdown: {ns.bullish_count} bullish, "
+                        f"{ns.bearish_count} bearish, {ns.neutral_count} neutral"
+                    )
                     sections.append("")
-            else:
-                # Fallback to DuckDuckGo headlines
-                sections.append("NEWS (Source: News APIs)")
-                sections.append("─" * 40)
                 
-                if self.news_articles:
-                    for i, article in enumerate(self.news_articles[:5], 1):
-                        sections.append(f"\n[{i}] {article.get('source', 'Unknown')} - {article.get('date', '')}")
-                        sections.append(f'"{article.get("headline", "")}"')
+                # Show articles with sentiment and FULL summaries
+                for article in ns.articles[:10]:
+                    headline = article.get('title', '')
+                    if headline and headline not in seen_headlines:
+                        sent_label = article.get('sentiment_label', 'Neutral')
+                        sections.append(f"* [{sent_label}] {headline}")
+                        # Include full summary if available
                         if article.get('summary'):
-                            sections.append(article.get('summary'))
-                elif self.news_headlines:
-                    for headline in self.news_headlines[:5]:
-                        sections.append(f"• {headline}")
+                            sections.append(f"  Summary: {article.get('summary')}")
+                        sections.append("")
+                        seen_headlines.add(headline)
+            
+            # 2. Augment with general headlines/articles (Source: yfinance) if we have room or no AV data
+            # Combine yfinance sources
+            yf_sources = []
+            if self.news_articles:
+                # news_articles comes from fetch_news_articles which uses yfinance
+                yf_sources.extend(self.news_articles)
+            
+            # Add simple headlines if we have them
+            if self.news_headlines:
+                yf_sources.extend([{'headline': h} for h in self.news_headlines])
+                
+            for item in yf_sources:
+                headline = item.get('headline', item.get('title', ''))
+                if headline and headline not in seen_headlines:
+                    sections.append(f"* {headline}")
+                    if item.get('summary'):
+                         sections.append(f"  Summary: {item.get('summary')}")
+                    seen_headlines.add(headline)
+                    if len(seen_headlines) >= 15: # Overall cap for agent prompt
+                        break
         
         # Price History Section
         if include_price_history and self.price_history:
@@ -360,6 +394,7 @@ def build_market_briefing(
     price_history: PriceHistoryData = None,
     news_headlines: List[str] = None,
     news_articles: List[dict] = None,
+    news_sentiment: NewsSentimentData = None,
 ) -> MarketBriefing:
     """
     Build a comprehensive market briefing from all data sources.
@@ -396,6 +431,7 @@ def build_market_briefing(
         ma_200=ma_200,
         news_headlines=news_headlines or [],
         news_articles=news_articles or [],
+        news_sentiment=news_sentiment,
     )
     
     # Add fundamentals data

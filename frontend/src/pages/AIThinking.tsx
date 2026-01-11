@@ -149,7 +149,7 @@ export function AIThinkingPage({ data }: AIThinkingPageProps) {
                         </h2>
 
                         {selectedRun.llm_calls.map((call, index) => (
-                            <LLMCallCard key={index} call={call} index={index} isLast={index === selectedRun.llm_calls.length - 1} />
+                            <LLMCallCard key={index} call={call} index={index} />
                         ))}
                     </div>
 
@@ -236,7 +236,7 @@ function StatCard({ icon, label, value, color }: { icon: React.ReactNode; label:
     );
 }
 
-function LLMCallCard({ call, index, isLast }: { call: LLMCall; index: number; isLast: boolean }) {
+function LLMCallCard({ call, index }: { call: LLMCall; index: number }) {
     const [expanded, setExpanded] = useState<string | null>(null);
 
     const toggleSection = (section: string) => setExpanded(expanded === section ? null : section);
@@ -253,7 +253,6 @@ function LLMCallCard({ call, index, isLast }: { call: LLMCall; index: number; is
 
     return (
         <div className="relative">
-            {!isLast && <div className="absolute left-6 top-16 bottom-0 w-0.5 bg-gradient-to-b from-[var(--color-border-secondary)] to-transparent" />}
 
             <motion.div
                 initial={{ opacity: 0, x: -10 }}

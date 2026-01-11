@@ -23,6 +23,8 @@ except Exception as e:
     logger.warning(f"Failed to set yfinance cache dir: {e}")
 
 
+from .utils import normalize_yahoo_ticker
+
 @dataclass
 class FundamentalsData:
     """
@@ -69,6 +71,20 @@ class FundamentalsData:
     
     # Beta (volatility vs market)
     beta: Optional[float] = None
+    
+    # Crypto specific
+    description: Optional[str] = None
+    circulating_supply: Optional[float] = None
+    total_supply: Optional[float] = None
+    all_time_high: Optional[float] = None
+    all_time_low: Optional[float] = None
+
+    def __bool__(self):
+        """Return True if any field is populated, False otherwise."""
+        # Check if any field matching the annotations is not None
+        # We can just check __dict__ but we need to exclude internal fields if any
+        # Here all fields are data fields.
+        return any(value is not None for value in self.__dict__.values())
 
 
 def fetch_fundamentals(ticker: str) -> FundamentalsData:
@@ -76,16 +92,44 @@ def fetch_fundamentals(ticker: str) -> FundamentalsData:
     Fetch fundamental data for a ticker from yfinance.
     
     Args:
-        ticker: Stock ticker symbol
+        ticker: Stock ticker symbol (e.g. AAPL, BTC/USDT)
         
     Returns:
         FundamentalsData with all available metrics
     """
+    # Normalize ticker (e.g. XRP/USDT -> XRP-USD)
+    y_ticker = normalize_yahoo_ticker(ticker)
+    
+    # 1. Check for Crypto (CoinGecko)
+    if "/" in ticker or ticker.endswith("USDT"):
+        from .coingecko import fetch_coin_fundamentals
+        try:
+            logger.debug(f"Fetching crypto fundamentals for {ticker} via CoinGecko")
+            coin_data = fetch_coin_fundamentals(ticker)
+            
+            if coin_data:
+                return FundamentalsData(
+                    company_name=coin_data.get("company_name"),
+                    sector=coin_data.get("sector"),
+                    industry=coin_data.get("industry"),
+                    market_cap=coin_data.get("market_cap"),
+                    high_52w=coin_data.get("high_52w"),
+                    low_52w=coin_data.get("low_52w"),
+                    description=coin_data.get("description"),
+                    circulating_supply=coin_data.get("circulating_supply"),
+                    total_supply=coin_data.get("total_supply"),
+                    all_time_high=coin_data.get("ath"),
+                    all_time_low=coin_data.get("atl"),
+                )
+        except Exception as e:
+            logger.warning(f"CoinGecko fetch failed for {ticker}: {e}")
+            # Fallthrough to yfinance just in case
+    
     try:
-        logger.debug(f"Fetching fundamentals for {ticker}...", extra={"ticker": ticker})
-        stock = yf.Ticker(ticker)
+        logger.debug(f"Fetching fundamentals for {ticker} (via {y_ticker})...", extra={"ticker": ticker, "y_ticker": y_ticker})
+        stock = yf.Ticker(y_ticker)
         
-        # 1. Try to get full info
+        # 2. Try to get full info (yfinance)
         info = None
         try:
             info = stock.info

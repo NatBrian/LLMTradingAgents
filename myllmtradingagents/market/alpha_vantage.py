@@ -23,6 +23,7 @@ from typing import Optional, List, Dict
 from dataclasses import dataclass, field
 import requests
 import logging
+from .utils import normalize_alpha_vantage_ticker
 
 logger = logging.getLogger(__name__)
 
@@ -171,6 +172,9 @@ def fetch_news_sentiment(
     if not is_available():
         return NewsSentimentData(ticker=ticker)
     
+    # Normalize ticker for AV (e.g. CRYPTO:BTC)
+    av_ticker = normalize_alpha_vantage_ticker(ticker)
+    
     date = date or datetime.now().strftime("%Y-%m-%d")
     
     # Check cache first
@@ -185,7 +189,7 @@ def fetch_news_sentiment(
     start_date = end_date - timedelta(days=7)
     
     params = {
-        "tickers": ticker,
+        "tickers": av_ticker,
         "time_from": start_date.strftime("%Y%m%dT0000"),
         "time_to": end_date.strftime("%Y%m%dT2359"),
         "sort": "LATEST",
