@@ -323,18 +323,35 @@ class ArenaRunner:
                         price = adapter.get_close_price(ticker, session_date)
                     
                     if price is None:
-                        # CRITICAL FIX: Do NOT fall back to latest price for specific sessions.
-                        # If we are running an OPEN/CLOSE session and data is missing, we should NOT trade.
-                        # EXCEPTION: If dry_run is True, we allow fallback to test the flow.
+                        # For live sessions, allow same-day fallback to keep OPEN/CLOSE sessions tradable
+                        # when the data provider hasn't published the daily bar yet.
                         if session_type in ["OPEN", "CLOSE"] and not dry_run:
-                            logger.warning(f"Missing {session_type} price for {ticker}, skipping execution", extra={"ticker": ticker, "session_type": session_type})
-                            continue
+                            if session_date == date.today():
+                                fallback = adapter.get_latest_price(ticker)
+                                if fallback:
+                                    logger.warning(
+                                        f"Missing {session_type} price for {ticker} on {session_date}, using latest price fallback",
+                                        extra={"ticker": ticker, "session_type": session_type, "session_date": session_date.isoformat()},
+                                    )
+                                    price = fallback
+                                else:
+                                    logger.warning(
+                                        f"Missing {session_type} price for {ticker} on {session_date}, skipping execution",
+                                        extra={"ticker": ticker, "session_type": session_type, "session_date": session_date.isoformat()},
+                                    )
+                                    continue
+                            else:
+                                logger.warning(
+                                    f"Missing {session_type} price for {ticker} on {session_date}, skipping execution",
+                                    extra={"ticker": ticker, "session_type": session_type, "session_date": session_date.isoformat()},
+                                )
+                                continue
                         
                         # Only fallback if we are not in a strict session (e.g. ad-hoc analysis) OR dry_run
-                        if dry_run:
-                            logger.info(f"Missing {session_type} price for {ticker}, using latest price (dry_run)", extra={"ticker": ticker})
-                        
-                        price = adapter.get_latest_price(ticker)
+                        if price is None:
+                            if dry_run:
+                                logger.info(f"Missing {session_type} price for {ticker}, using latest price (dry_run)", extra={"ticker": ticker})
+                            price = adapter.get_latest_price(ticker)
                     
                     if price:
                         prices[ticker.upper()] = price
@@ -485,11 +502,31 @@ class ArenaRunner:
         # ====================================================================
         fills = []
         
-        if trade_plan and trade_plan.orders and not dry_run:
-            logger.info(f"Executing {len(trade_plan.orders)} orders", extra={"order_count": len(trade_plan.orders)})
+        valid_orders = []
+        if trade_plan and trade_plan.orders:
+            for order in trade_plan.orders:
+                ticker = order.ticker.upper()
+                price = prices.get(ticker)
+                if price is None:
+                    msg = f"No price available for {ticker} in {session_type} {session_date_str}, skipping order"
+                    logger.warning(msg, extra={"ticker": ticker, "session_type": session_type, "session_date": session_date_str})
+                    errors.append(msg)
+                    continue
+                
+                is_valid, error = broker.validate_order(order, price)
+                if not is_valid:
+                    msg = f"Order rejected: {order.side.value} {order.qty} {ticker} - {error}"
+                    logger.warning(msg, extra={"ticker": ticker, "session_type": session_type, "session_date": session_date_str})
+                    errors.append(msg)
+                    continue
+                
+                valid_orders.append(order)
+        
+        if valid_orders and not dry_run:
+            logger.info(f"Executing {len(valid_orders)} orders", extra={"order_count": len(valid_orders)})
             
             fills = broker.execute_orders(
-                orders=trade_plan.orders,
+                orders=valid_orders,
                 prices=prices,
                 timestamp=datetime.utcnow(),
             )
@@ -500,7 +537,10 @@ class ArenaRunner:
             for fill in fills:
                 self.storage.save_trade(competitor.id, fill)
         elif trade_plan:
-            logger.info("HOLD decision (no orders)")
+            if trade_plan.orders and not valid_orders:
+                logger.info("No valid orders to execute after validation")
+            else:
+                logger.info("HOLD decision (no orders)")
         
         # Get snapshot after
         broker.update_prices(prices)
