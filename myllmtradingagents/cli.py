@@ -91,6 +91,7 @@ def run(config: str, session: str, date: str, dry_run: bool, force: bool):
         session_type=session.upper(),
         session_date=session_date,
         dry_run=dry_run,
+        force=force,
     )
     
     # Print results

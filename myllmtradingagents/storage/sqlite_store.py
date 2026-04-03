@@ -4,7 +4,7 @@ SQLite storage implementation.
 
 import json
 import sqlite3
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Optional, List, Dict
 
@@ -527,3 +527,75 @@ class SQLiteStorage(Storage):
             ON CONFLICT(provider, date) DO UPDATE SET count = count + ?
         """, (provider, date, count, count))
         self.conn.commit()
+
+    # ========================================================================
+    # Maintenance / Pruning
+    # ========================================================================
+
+    def _db_size_mb(self) -> float:
+        if not self.db_path.exists():
+            return 0.0
+        return self.db_path.stat().st_size / (1024 * 1024)
+
+    def prune_for_size(
+        self,
+        max_db_mb: int = 80,
+        keep_days: int = 30,
+    ) -> None:
+        """
+        Prune non-dashboard data and shrink DB if it exceeds max size.
+
+        Keeps:
+        - competitors
+        - snapshots (equity curves)
+        Prunes:
+        - run_logs (AI thinking)
+        - trades (trade history)
+        - call_counters (daily counters)
+        """
+        if not self.db_path.exists():
+            return
+
+        cutoff = (datetime.utcnow() - timedelta(days=keep_days)).isoformat()
+
+        # Remove old non-dashboard data
+        self.conn.execute("DELETE FROM run_logs WHERE timestamp < ?", (cutoff,))
+        self.conn.execute("DELETE FROM trades WHERE timestamp < ?", (cutoff,))
+        self.conn.execute("DELETE FROM call_counters WHERE date < ?", ((datetime.utcnow() - timedelta(days=keep_days)).date().isoformat(),))
+        self.conn.commit()
+
+        # If still too large, drop all non-dashboard data
+        if self._db_size_mb() > max_db_mb:
+            self.conn.execute("DELETE FROM run_logs")
+            self.conn.execute("DELETE FROM trades")
+            self.conn.execute("DELETE FROM call_counters")
+            self.conn.commit()
+
+        # If still too large, trim snapshots by age
+        if self._db_size_mb() > max_db_mb:
+            for days in (180, 90, 30):
+                snap_cutoff = (datetime.utcnow() - timedelta(days=days)).isoformat()
+                self.conn.execute("DELETE FROM snapshots WHERE timestamp < ?", (snap_cutoff,))
+                self.conn.commit()
+                if self._db_size_mb() <= max_db_mb:
+                    break
+
+        # If still too large, keep only latest snapshot per competitor
+        if self._db_size_mb() > max_db_mb:
+            self.conn.execute("""
+                DELETE FROM snapshots
+                WHERE id NOT IN (
+                    SELECT s.id FROM snapshots s
+                    INNER JOIN (
+                        SELECT competitor_id, MAX(timestamp) AS max_ts
+                        FROM snapshots
+                        GROUP BY competitor_id
+                    ) latest
+                    ON s.competitor_id = latest.competitor_id AND s.timestamp = latest.max_ts
+                )
+            """)
+            self.conn.commit()
+
+        # Compact DB file
+        if self.db_path.exists():
+            self.conn.execute("VACUUM")

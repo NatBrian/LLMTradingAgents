@@ -66,6 +66,7 @@ class PriceHistoryData:
 def fetch_price_history(
     ticker: str,
     days: int = 60,
+    end_date: Optional[datetime] = None,
 ) -> PriceHistoryData:
     """
     Fetch price history for a ticker.
@@ -73,6 +74,7 @@ def fetch_price_history(
     Args:
         ticker: Stock ticker symbol
         days: Number of days of history to fetch
+        end_date: Optional end datetime (default: now)
         
     Returns:
         PriceHistoryData with OHLCV bars
@@ -84,7 +86,7 @@ def fetch_price_history(
         stock = yf.Ticker(y_ticker)
         
         # Fetch history
-        end_date = datetime.now()
+        end_date = end_date or datetime.now()
         start_date = end_date - timedelta(days=days + 10)  # Extra buffer for weekends
         
         df = stock.history(start=start_date, end=end_date)
@@ -162,6 +164,7 @@ def fetch_price_history(
 def fetch_price_history_batch(
     tickers: List[str],
     days: int = 60,
+    end_date: Optional[datetime] = None,
 ) -> Dict[str, PriceHistoryData]:
     """
     Fetch price history for multiple tickers.
@@ -169,11 +172,12 @@ def fetch_price_history_batch(
     Args:
         tickers: List of ticker symbols
         days: Number of days of history
+        end_date: Optional end datetime (default: now)
         
     Returns:
         Dict mapping ticker -> PriceHistoryData
     """
     result = {}
     for ticker in tickers:
-        result[ticker.upper()] = fetch_price_history(ticker, days)
+        result[ticker.upper()] = fetch_price_history(ticker, days, end_date=end_date)
     return result

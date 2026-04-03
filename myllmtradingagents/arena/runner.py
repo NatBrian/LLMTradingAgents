@@ -118,6 +118,7 @@ class ArenaRunner:
         session_type: str,  # "OPEN" or "CLOSE"
         session_date: Optional[date] = None,
         dry_run: bool = False,
+        force: bool = False,
     ) -> Dict:
         """
         Run a trading session for all competitors.
@@ -134,6 +135,10 @@ class ArenaRunner:
         session_date_str = session_date.isoformat()
         
         logger.info("Starting session", extra={"session_type": session_type, "session_date": session_date_str, "dry_run": dry_run})
+
+        if not dry_run:
+            # Keep DB under size cap while preserving dashboard essentials
+            self.storage.prune_for_size(max_db_mb=80, keep_days=10)
         
         results = {}
         
@@ -155,12 +160,12 @@ class ArenaRunner:
         # Fetch market data and compute features
         # Fetch market data and compute features
         logger.info(f"Fetching market data for {len(all_tickers)} tickers", extra={"ticker_count": len(all_tickers), "tickers": all_tickers})
-        ticker_features = self._fetch_features(market_adapters, all_tickers)
+        ticker_features = self._fetch_features(market_adapters, all_tickers, session_date)
         
         # Build comprehensive briefings with fundamentals, earnings, insider, history
         # Build comprehensive briefings with fundamentals, earnings, insider, history
         logger.info("Building comprehensive market briefings")
-        briefings = self._build_briefings(ticker_features, session_date_str)
+        briefings = self._build_briefings(ticker_features, session_date_str, session_date)
         
         # Get current prices for all tickers
         prices = self._get_prices(market_adapters, all_tickers, session_type, session_date, dry_run)
@@ -178,6 +183,7 @@ class ArenaRunner:
                     briefings=briefings,
                     prices=prices,
                     dry_run=dry_run,
+                    force=force,
                 )
                 results[competitor.id] = result
             except Exception as e:
@@ -190,6 +196,7 @@ class ArenaRunner:
         self,
         market_adapters: Dict,
         tickers: List[str],
+        end_date: date,
     ) -> List[TickerFeatures]:
         """Fetch and compute features for all tickers."""
         features_list = []
@@ -201,7 +208,7 @@ class ArenaRunner:
         for market_type, (adapter, market_tickers) in market_adapters.items():
             for ticker in market_tickers:
                 try:
-                    bars = adapter.get_daily_bars(ticker, days=90)
+                    bars = adapter.get_daily_bars(ticker, days=90, end_date=end_date)
                     headlines = news_dict.get(ticker.upper(), [])
                     features = compute_features(ticker, bars, headlines)
                     features_list.append(features)
@@ -215,6 +222,7 @@ class ArenaRunner:
         self,
         ticker_features: List[TickerFeatures],
         session_date_str: str,
+        session_date: date,
     ) -> List[MarketBriefing]:
         """
         Build comprehensive MarketBriefing objects from all data sources.
@@ -249,7 +257,11 @@ class ArenaRunner:
                 logger.debug(f"  Warning: Could not fetch insider data for {ticker}: {e}")
             
             try:
-                price_history = fetch_price_history(ticker, days=60)
+                price_history = fetch_price_history(
+                    ticker,
+                    days=60,
+                    end_date=datetime.combine(session_date, datetime.max.time()),
+                )
             except Exception as e:
                 logger.debug(f"  Warning: Could not fetch price history for {ticker}: {e}")
             
@@ -369,6 +381,7 @@ class ArenaRunner:
         briefings: List[MarketBriefing],
         prices: Dict[str, float],
         dry_run: bool,
+        force: bool,
     ) -> Dict:
         """Run a single competitor through the trading flow."""
         run_id = str(uuid.uuid4())[:8]
@@ -376,7 +389,7 @@ class ArenaRunner:
         llm_calls = []
         
         # Check if already run today
-        if not dry_run and self.storage.has_run_today(competitor.id, session_date_str, session_type):
+        if not dry_run and not force and self.storage.has_run_today(competitor.id, session_date_str, session_type):
             logger.info(f"Already ran {session_type} session today, skipping", extra={"competitor_id": competitor.id, "session_type": session_type})
             return {"skipped": True, "reason": "already_ran"}
         
