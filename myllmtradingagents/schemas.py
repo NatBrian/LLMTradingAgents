@@ -240,7 +240,7 @@ class TradePlan(BaseModel):
 class LLMCall(BaseModel):
     """Record of a single LLM API call."""
     call_type: str = Field(..., description="strategist or decision")
-    provider: str = Field(..., description="openrouter or gemini")
+    provider: str = Field(..., description="openrouter, gemini, or openai_compatible")
     model: str = Field(..., description="Model name")
     prompt_tokens: int = Field(default=0, ge=0)
     completion_tokens: int = Field(default=0, ge=0)

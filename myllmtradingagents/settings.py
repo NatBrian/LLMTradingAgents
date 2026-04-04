@@ -25,7 +25,7 @@ load_dotenv()
 @dataclass
 class LLMProviderConfig:
     """Configuration for an LLM provider."""
-    provider: str  # "openrouter" or "gemini"
+    provider: str  # "openrouter", "gemini", or "openai_compatible"
     model: str
     api_key: str = ""
     base_url: str = ""
@@ -36,6 +36,9 @@ class LLMProviderConfig:
             self.base_url = self.base_url or "https://openrouter.ai/api/v1"
         elif self.provider == "gemini":
             self.api_key = self.api_key or os.getenv("GOOGLE_API_KEY", "")
+        elif self.provider in {"openai", "openai_compatible", "custom_openai", "custom-openai"}:
+            self.api_key = self.api_key or os.getenv("CUSTOM_OPENAI_API_KEY", "") or os.getenv("OPENAI_API_KEY", "")
+            self.base_url = self.base_url or os.getenv("CUSTOM_OPENAI_BASE_URL", "") or "https://api.openai.com/v1"
 
 
 @dataclass
@@ -88,6 +91,7 @@ class ArenaConfig:
     daily_call_limits: Dict[str, int] = field(default_factory=lambda: {
         "openrouter": 100,
         "gemini": 100,
+        "openai_compatible": 100,
     })
 
     def __post_init__(self):
@@ -157,7 +161,7 @@ def parse_config(raw: Dict[str, Any]) -> ArenaConfig:
         markets=markets,
         competitors=competitors,
         simulation=simulation,
-        daily_call_limits=raw.get("daily_call_limits", {"openrouter": 100, "gemini": 100}),
+        daily_call_limits=raw.get("daily_call_limits", {"openrouter": 100, "gemini": 100, "openai_compatible": 100}),
     )
 
 
