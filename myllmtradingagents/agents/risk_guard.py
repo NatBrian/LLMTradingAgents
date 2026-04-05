@@ -75,10 +75,17 @@ For each proposal, decide:
 1. APPROVE → Convert to an Order with specific quantity
 2. VETO → Do not include in orders (explain in reasoning)
 
-Output your TradePlan as JSON with:
-- reasoning: Explain your decisions (which proposals approved/vetoed and why)
-- risk_assessment: Key risks in executing these trades
-- orders: List of approved Order objects (or empty list for HOLD)
+Output your TradePlan as JSON with EXACTLY these fields and types:
+- "reasoning": A SINGLE STRING explaining your decisions (which proposals approved/vetoed and why). Do NOT use a dictionary or list.
+- "risk_assessment": A SINGLE STRING highlighting key risks in executing these trades. Do NOT use a list.
+- "orders": A list of approved Order objects. Empty list [] if HOLD.
+
+For each object in the "orders" list, use EXACTLY these keys:
+- "ticker" (string)
+- "side" ("BUY" or "SELL")
+- "qty" (integer quantity)
+- "order_type" ("MARKET")
+Do NOT invent fields like 'action', 'quantity', or 'time_in_force'.
 
 Remember: Output ONLY the RAW JSON object. Do not use markdown formatting."""
 

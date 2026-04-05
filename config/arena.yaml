@@ -9,6 +9,7 @@ cache_dir: "~/.myllmtradingagents/cache"
 daily_call_limits:
   openrouter: 100
   gemini: 100
+  openai_compatible: 100
 
 # Markets to trade
 markets:
@@ -43,32 +44,17 @@ simulation:
 
 # Competitors (LLM configs)
 competitors:
-  - id: openrouter_xiaomi_mimo_v2_flash
-    name: "Xiaomi Mimo v2 Flash"
-    provider: openrouter
-    model: "xiaomi/mimo-v2-flash:free"
+  - id: gpt_5_2
+    name: "GPT-5.2"
+    provider: openai_compatible
+    model: "gpt-5.2"
 
-  - id: gemini_2_5_flash
-    name: "Gemini 2.5 Flash"
-    provider: gemini
-    model: "gemini-2.5-flash"
+  - id: gemini_3_flash
+    name: "Gemini 3 Flash"
+    provider: openai_compatible
+    model: "gemini-3-flash"
 
-  - id: openrouter_devstral
-    name: "Mistralai Devstral-2512"
-    provider: openrouter
-    model: "mistralai/devstral-2512:free"
-
-  - id: gemini_3_flash_preview
-    name: "Gemini 3 Flash Preview"
-    provider: gemini
-    model: "gemini-3-flash-preview"
-
-  - id: openrouter_glm_4_5_air
-    name: "GLM 4.5 Air"
-    provider: openrouter
-    model: "z-ai/glm-4.5-air:free"
-
-  - id: gemini_2_5_flash_lite
-    name: "Gemini 2.5 Flash Lite"
-    provider: gemini
-    model: "gemini-2.5-flash-lite"
+  - id: cclaude_sonnet_4_5
+    name: "Claude Sonnet 4.5"
+    provider: openai_compatible
+    model: "claude-sonnet-4-5"

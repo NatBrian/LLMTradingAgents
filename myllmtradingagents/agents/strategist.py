@@ -100,10 +100,18 @@ Review each ticker's data carefully, including:
 
 {briefings}
 
-For EACH ticker, provide:
-1. Your proposed action (BUY, SELL, or HOLD)
-2. Your confidence level (0.0 to 1.0)
-3. A brief rationale explaining your decision
+You MUST return a JSON object with the following root fields exactly:
+1. "session_date" (string)
+2. "session_type" (string)
+3. "market_summary" (string summary)
+4. "proposals" (list of proposal objects for each ticker)
+
+Each proposal object in the "proposals" list must contain:
+- "ticker"
+- "action" (BUY, SELL, or HOLD)
+- "confidence" (0.0 to 1.0)
+- "rationale"
+- "target_allocation_pct" (optional)
 
 Remember: Output ONLY the RAW JSON object. Do not use markdown formatting."""
 

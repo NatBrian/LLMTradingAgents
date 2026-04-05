@@ -23,7 +23,8 @@ class CryptoAdapter(MarketAdapter):
     TIMEZONE = "UTC"
     
     # Fallback exchanges to try if primary fails (in order of preference)
-    FALLBACK_EXCHANGES = ["kraken", "kucoin", "coinbase", "bitstamp"]
+    # Skip kraken for USDT pairs as it uses XBT and different quote currencies
+    FALLBACK_EXCHANGES = ["kucoin", "coinbase", "bitstamp", "kraken"]
     
     # Default session times (UTC) - crypto trades 24/7 but we pick 2 times
     DEFAULT_SESSION_TIMES = ["00:00", "12:00"]
@@ -122,6 +123,27 @@ class CryptoAdapter(MarketAdapter):
                 quote = "USD"
         
         return f"{base}/{quote}"
+
+    def _candidate_symbols_for_exchange(self, ticker: str, exchange_name: str) -> List[str]:
+        """Return symbol candidates to try for an exchange."""
+        primary = self._normalize_symbol_for_exchange(ticker, exchange_name)
+        candidates = [primary]
+
+        base, quote = primary.split("/")
+        if exchange_name in {"kraken", "coinbase"} and quote == "USDT":
+            candidates.append(f"{base}/USD")
+        if exchange_name == "kraken" and base == "XBT":
+            candidates.append(f"BTC/{quote}")
+            if quote == "USDT":
+                candidates.append("BTC/USD")
+
+        seen = set()
+        unique_candidates = []
+        for symbol in candidates:
+            if symbol not in seen:
+                seen.add(symbol)
+                unique_candidates.append(symbol)
+        return unique_candidates
     
     def get_market_type(self) -> str:
         return "crypto"
@@ -178,25 +200,26 @@ class CryptoAdapter(MarketAdapter):
             if exchange is None:
                 continue
             
-            # Normalize symbol for this specific exchange
-            symbol = self._normalize_symbol_for_exchange(ticker, exchange_name)
-            
             try:
-                logger.info(
-                    f"Fetching crypto data for {ticker} from {exchange_name}",
-                    extra={"symbol": symbol, "exchange": exchange_name, "since": since_date.isoformat()}
-                )
-                
-                # Fetch OHLCV
-                ohlcv = exchange.fetch_ohlcv(
-                    symbol,
-                    timeframe="1d",
-                    since=since_ts,
-                    limit=days + 5,
-                )
-                
-                if not ohlcv:
-                    logger.warning(f"No data returned from {exchange_name} for {symbol}")
+                for symbol in self._candidate_symbols_for_exchange(ticker, exchange_name):
+                    logger.info(
+                        f"Fetching crypto data for {ticker} from {exchange_name}",
+                        extra={"symbol": symbol, "exchange": exchange_name, "since": since_date.isoformat()}
+                    )
+                    
+                    # Fetch OHLCV
+                    ohlcv = exchange.fetch_ohlcv(
+                        symbol,
+                        timeframe="1d",
+                        since=since_ts,
+                        limit=days + 5,
+                    )
+                    
+                    if not ohlcv:
+                        logger.warning(f"No data returned from {exchange_name} for {symbol}")
+                        continue
+                    break
+                else:
                     continue
                 
                 # Convert to DataFrame
@@ -270,14 +293,14 @@ class CryptoAdapter(MarketAdapter):
     def get_latest_price(self, ticker: str) -> Optional[float]:
         """Get latest price using ticker endpoint with multi-exchange fallback."""
         exchanges_to_try = self._get_exchange_order()
-        
+
         for exchange_name in exchanges_to_try:
             exchange = self._get_exchange(exchange_name)
             if exchange is None:
                 continue
-            
+
             symbol = self._normalize_symbol_for_exchange(ticker, exchange_name)
-            
+
             try:
                 ticker_data = exchange.fetch_ticker(symbol)
                 price = float(ticker_data.get("last") or ticker_data.get("close", 0))
@@ -290,11 +313,67 @@ class CryptoAdapter(MarketAdapter):
                     extra={"symbol": symbol, "exchange": exchange_name, "error": str(e)}
                 )
                 continue
-        
+
         # All ticker endpoints failed, fallback to last daily bar
         logger.warning(f"All ticker endpoints failed for {ticker}, trying daily bars")
         bars = self.get_daily_bars(ticker, days=2)
         if bars.empty:
             return None
         return float(bars.iloc[-1]["Close"])
+
+    def get_open_price(self, ticker: str, trade_date: date) -> Optional[float]:
+        """Get opening price, using closest available date if exact date not found."""
+        bars = self.get_daily_bars(ticker, days=10, end_date=trade_date)
+        if bars.empty:
+            return None
+
+        # Try exact date match first
+        date_str = trade_date.strftime("%Y-%m-%d")
+        if "Date" in bars.columns:
+            bars["Date"] = pd.to_datetime(bars["Date"]).dt.strftime("%Y-%m-%d")
+            row = bars[bars["Date"] == date_str]
+            if not row.empty:
+                return float(row.iloc[0]["Open"])
+
+        # For crypto, use closest available date (crypto trades 24/7, daily candles may be offset)
+        if "Date" in bars.columns:
+            bars["Date"] = pd.to_datetime(bars["Date"])
+            # Find the closest date before or on the target date
+            bars["Date"] = pd.to_datetime(bars["Date"])
+            target_dt = pd.Timestamp(trade_date)
+            before = bars[bars["Date"] <= target_dt]
+            if not before.empty:
+                closest = before.iloc[-1]
+                logger.info(f"Using closest available date {closest['Date'].strftime('%Y-%m-%d')} for {ticker} open (requested {trade_date})",
+                           extra={"ticker": ticker, "requested_date": trade_date.isoformat(), "actual_date": closest['Date'].strftime('%Y-%m-%d')})
+                return float(closest["Open"])
+
+        return None
+
+    def get_close_price(self, ticker: str, trade_date: date) -> Optional[float]:
+        """Get closing price, using closest available date if exact date not found."""
+        bars = self.get_daily_bars(ticker, days=10, end_date=trade_date)
+        if bars.empty:
+            return None
+
+        # Try exact date match first
+        date_str = trade_date.strftime("%Y-%m-%d")
+        if "Date" in bars.columns:
+            bars["Date"] = pd.to_datetime(bars["Date"]).dt.strftime("%Y-%m-%d")
+            row = bars[bars["Date"] == date_str]
+            if not row.empty:
+                return float(row.iloc[0]["Close"])
+
+        # For crypto, use closest available date
+        if "Date" in bars.columns:
+            bars["Date"] = pd.to_datetime(bars["Date"])
+            target_dt = pd.Timestamp(trade_date)
+            before = bars[bars["Date"] <= target_dt]
+            if not before.empty:
+                closest = before.iloc[-1]
+                logger.info(f"Using closest available date {closest['Date'].strftime('%Y-%m-%d')} for {ticker} close (requested {trade_date})",
+                           extra={"ticker": ticker, "requested_date": trade_date.isoformat(), "actual_date": closest['Date'].strftime('%Y-%m-%d')})
+                return float(closest["Close"])
+
+        return None
 

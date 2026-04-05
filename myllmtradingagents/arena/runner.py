@@ -409,6 +409,9 @@ class ArenaRunner:
         
         # Create LLM client
         try:
+            import os
+            logger.debug(f"Creating LLM client for provider={competitor.provider}, model={competitor.model}")
+            logger.debug(f"Env CUSTOM_OPENAI_API_KEY: {'SET' if os.getenv('CUSTOM_OPENAI_API_KEY') else 'NOT SET'}")
             llm_client = create_llm_client(
                 provider=competitor.provider,
                 model=competitor.model,
@@ -691,9 +694,35 @@ class ArenaRunner:
         
         if repair_response.success:
             try:
-                return model_class.model_validate_json(repair_response.content)
+                # Clean JSON before parsing (remove markdown code blocks and thinking tags)
+                import re
+                content = repair_response.content.strip()
+                # Remove <thinking> tags
+                content = re.sub(r'<thinking>.*?</thinking>', '', content, flags=re.DOTALL).strip()
+                content = re.sub(r'<thinking>', '', content).strip()
+                content = re.sub(r'</thinking>', '', content).strip()
+                # Remove markdown code blocks
+                while content.startswith("```"):
+                    newline_idx = content.find("\n")
+                    if newline_idx != -1:
+                        content = content[newline_idx+1:]
+                    else:
+                        if content.startswith("```json"):
+                            content = content[7:]
+                        elif content.startswith("```JSON"):
+                            content = content[7:]
+                        else:
+                            content = content[3:]
+                    content = content.strip()
+                while True:
+                    stripped = content.rstrip()
+                    if stripped.endswith("```"):
+                        content = stripped[:-3].rstrip()
+                    else:
+                        break
+                return model_class.model_validate_json(content.strip())
             except Exception as e:
                 logger.warning(f"Repair failed: {e}", extra={"error": str(e)})
-        
+
         return None
 

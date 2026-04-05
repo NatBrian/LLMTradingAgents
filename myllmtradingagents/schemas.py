@@ -24,9 +24,6 @@ class OrderType(str, Enum):
     STOP = "STOP"
 
 
-
-
-
 class ProposedAction(str, Enum):
     """
     Proposed trading action from the Strategist.
@@ -53,6 +50,14 @@ class Order(BaseModel):
     @classmethod
     def validate_ticker(cls, v: str) -> str:
         return v.upper().strip()
+        
+    @field_validator("qty", mode="before")
+    @classmethod
+    def cast_qty_to_int(cls, v):
+        try:
+            return int(float(v))
+        except (ValueError, TypeError):
+            return v
 
 
 class Fill(BaseModel):
@@ -362,4 +367,3 @@ def get_trade_plan_schema() -> Dict:
 def get_strategist_proposal_schema() -> Dict:
     """Get JSON schema for StrategistProposal (3-Agent System)."""
     return StrategistProposal.model_json_schema()
-

@@ -220,16 +220,16 @@ class BaseEquityAdapter(MarketAdapter):
             return None
         return float(bars.iloc[-1]["Close"])
 
-    def get_open_price(self, ticker: str, date: date) -> Optional[float]:
+    def get_open_price(self, ticker: str, trade_date: date) -> Optional[float]:
         """Get open price with real-time fallback."""
         # Try historical data first
-        price = super().get_open_price(ticker, date)
+        price = super().get_open_price(ticker, trade_date)
         if price is not None:
             return price
             
         # If requesting today's open and it's missing from history (common during trading day),
         # try to get it from real-time info
-        if date == date.today():
+        if trade_date == date.today():
             try:
                 import yfinance as yf
                 logger.info(f"Fetching real-time open price for {ticker}", extra={"ticker": ticker})

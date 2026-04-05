@@ -8,7 +8,13 @@ Example:
 
 import argparse
 from datetime import date, datetime, timedelta
+from pathlib import Path
 import sys
+
+# Ensure the package root is importable when running from the project directory.
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 from myllmtradingagents.settings import load_config
 from myllmtradingagents.arena import ArenaRunner
@@ -46,13 +52,21 @@ def parse_date(value: str) -> date:
 
 
 def should_run_for_date(market_adapters, session_date: date) -> bool:
+    """Check if we should run for a given date.
+    
+    We need at least one equity market to be open (crypto is always open).
+    """
+    has_equity_open = False
     for adapter in market_adapters:
         try:
-            if adapter.is_trading_day(session_date):
-                return True
+            market_type = adapter.get_market_type()
+            is_open = adapter.is_trading_day(session_date)
+            # Equity markets must be open (crypto is always open)
+            if market_type in ("us_equity", "sg_equity") and is_open:
+                has_equity_open = True
         except Exception:
             continue
-    return False
+    return has_equity_open
 
 
 def main() -> int:

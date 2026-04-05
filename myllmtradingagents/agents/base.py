@@ -128,27 +128,40 @@ class Agent(ABC):
 
     def _clean_json_string(self, content: str) -> str:
         """
-        Clean JSON string by removing markdown code blocks.
-        
-        LLMs often wrap JSON in ```json ... ``` blocks.
+        Clean JSON string by removing markdown code blocks and thinking tags.
+
+        LLMs often wrap JSON in ```json ... ``` blocks or include <thinking> tags.
         """
         content = content.strip()
-        
-        # Remove ```json or ``` at start
-        if content.startswith("```"):
-            # Find first newline
+
+        # Remove <thinking>...</thinking> tags
+        import re
+        content = re.sub(r'<thinking>.*?</thinking>', '', content, flags=re.DOTALL).strip()
+        content = re.sub(r'<thinking>', '', content).strip()
+        content = re.sub(r'</thinking>', '', content).strip()
+
+        # Remove ```json or ``` at start (handle multiple attempts)
+        while content.startswith("```"):
+            # Find first newline after the opening fence
             newline_idx = content.find("\n")
             if newline_idx != -1:
                 content = content[newline_idx+1:]
             else:
-                # Fallback if no newline (rare)
+                # Fallback if no newline
                 if content.startswith("```json"):
+                    content = content[7:]
+                elif content.startswith("```JSON"):
                     content = content[7:]
                 else:
                     content = content[3:]
-        
-        # Remove ``` at end
-        if content.endswith("```"):
-            content = content[:-3]
-            
+            content = content.strip()
+
+        # Remove ``` at end (handle trailing whitespace/newlines)
+        while True:
+            stripped = content.rstrip()
+            if stripped.endswith("```"):
+                content = stripped[:-3].rstrip()
+            else:
+                break
+
         return content.strip()

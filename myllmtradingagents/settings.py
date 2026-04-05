@@ -12,14 +12,28 @@ from typing import Any, List, Dict, Union
 from dataclasses import dataclass, field
 
 import yaml
-from dotenv import load_dotenv
+from dotenv import load_dotenv, find_dotenv
 import logging
 
 logger = logging.getLogger(__name__)
 
 
-# Load .env file from project root or current directory
-load_dotenv()
+def _load_environment() -> None:
+    """Load environment variables from the most likely project .env file."""
+    # Prefer an explicit .env in the package root so backtests work regardless of cwd.
+    package_root = Path(__file__).resolve().parents[1]
+    explicit_env = package_root / ".env"
+    if explicit_env.exists():
+        load_dotenv(explicit_env, override=False)
+        return
+
+    # Fall back to a standard search from the current working directory.
+    found = find_dotenv(usecwd=True)
+    if found:
+        load_dotenv(found, override=False)
+
+
+_load_environment()
 
 
 @dataclass
@@ -169,6 +183,16 @@ def parse_config(raw: Dict[str, Any]) -> ArenaConfig:
 def get_openrouter_api_key() -> str:
     """Get OpenRouter API key from environment."""
     return os.getenv("OPENROUTER_API_KEY", "")
+
+
+def get_custom_openai_api_key() -> str:
+    """Get OpenAI-compatible API key from environment."""
+    return os.getenv("CUSTOM_OPENAI_API_KEY", "") or os.getenv("OPENAI_API_KEY", "")
+
+
+def get_custom_openai_base_url() -> str:
+    """Get OpenAI-compatible base URL from environment."""
+    return os.getenv("CUSTOM_OPENAI_BASE_URL", "") or "https://api.openai.com/v1"
 
 
 def get_google_api_key() -> str:

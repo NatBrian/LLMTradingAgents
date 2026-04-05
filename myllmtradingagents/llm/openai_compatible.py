@@ -12,6 +12,7 @@ from typing import Optional
 import httpx
 
 from .base import LLMClient, LLMResponse
+from ..settings import get_custom_openai_api_key, get_custom_openai_base_url
 import logging
 
 logger = logging.getLogger(__name__)
@@ -28,8 +29,8 @@ class OpenAICompatibleClient(LLMClient):
         timeout: float = 120.0,
     ):
         self.model = model
-        self.api_key = api_key or os.getenv("CUSTOM_OPENAI_API_KEY", "") or os.getenv("OPENAI_API_KEY", "")
-        self.base_url = (base_url or os.getenv("CUSTOM_OPENAI_BASE_URL", "") or "https://api.openai.com/v1").rstrip("/")
+        self.api_key = api_key or get_custom_openai_api_key()
+        self.base_url = (base_url or get_custom_openai_base_url()).rstrip("/")
         self.timeout = timeout
 
         if not self.api_key:
