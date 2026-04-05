@@ -136,9 +136,9 @@ class ArenaRunner:
         
         logger.info("Starting session", extra={"session_type": session_type, "session_date": session_date_str, "dry_run": dry_run})
 
-        if not dry_run:
+        # if not dry_run:
             # Keep DB under size cap while preserving dashboard essentials
-            self.storage.prune_for_size(max_db_mb=80, keep_days=10)
+            # self.storage.prune_for_size(max_db_mb=80, keep_days=10)
         
         results = {}
         
