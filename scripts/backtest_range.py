@@ -55,7 +55,12 @@ def should_run_for_date(market_adapters, session_date: date) -> bool:
     """Check if we should run for a given date.
     
     We need at least one equity market to be open (crypto is always open).
+    Runs only 1 time a week (Monday) to conserve API calls.
     """
+    # Only run on Monday (0)
+    if session_date.weekday() != 0:
+        return False
+
     has_equity_open = False
     for adapter in market_adapters:
         try:
